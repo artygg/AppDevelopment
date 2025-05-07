@@ -6,21 +6,22 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 56.949766, longitude: 24.118936),
-            span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+            center: CLLocationCoordinate2D(latitude: 52.78, longitude: 6.9),
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
     private let captureRadius: Double = 100
 
     @State private var places: [Place] = [
-        Place(name: "Kingdom NHL STENDEN", coordinate: CLLocationCoordinate2D(latitude: 56.949766, longitude: 24.118936)),
-        Place(name: "Rīgas cirks", coordinate: CLLocationCoordinate2D(latitude: 56.95385, longitude: 24.12795)),
-        Place(name: "Brīvības piemineklis", coordinate: CLLocationCoordinate2D(latitude: 56.9540, longitude: 24.1133)),
-        Place(name: "ORIGO TC", coordinate: CLLocationCoordinate2D(latitude: 56.947773, longitude: 24.122821)),
-        Place(name: "Vecrīga", coordinate: CLLocationCoordinate2D(latitude: 56.9480, longitude: 24.1060)),
-        Place(name: "Rīgas Doms", coordinate: CLLocationCoordinate2D(latitude: 56.9474, longitude: 24.1062)),
-        Place(name: "Rīgas Centrāltirgus", coordinate: CLLocationCoordinate2D(latitude: 56.9484, longitude: 24.1019))
+        Place(name: "Wildlands Adventure Zoo", coordinate: CLLocationCoordinate2D(latitude: 52.780748, longitude: 6.887516)),
+        Place(name: "Station Emmen", coordinate: CLLocationCoordinate2D(latitude: 52.790453, longitude: 6.899715)),
+        Place(name: "Rensenpark", coordinate: CLLocationCoordinate2D(latitude: 52.785692, longitude: 6.897980)),
+        Place(name: "Emmerdennen Bos", coordinate: CLLocationCoordinate2D(latitude: 52.794587, longitude: 6.917414)),
+        Place(name: "Winkelcentrum De Weiert", coordinate: CLLocationCoordinate2D(latitude: 52.782382, longitude: 6.894363)),
+        Place(name: "NHL Stenden Emmen", coordinate: CLLocationCoordinate2D(latitude: 52.778150, longitude: 6.911960)),
+        Place(name: "Danackers 70", coordinate: CLLocationCoordinate2D(latitude: 52.780455, longitude: 6.94272)),
     ]
+
 
     private var capturedCount: Int { places.filter { $0.isCaptured }.count }
     private var totalCount: Int { places.count }
@@ -45,7 +46,7 @@ struct ContentView: View {
             if let last = places.last(where: { $0.isCaptured }) {
                 VStack {
                     Spacer()
-                    Text("🏆 \(last.name) захвачен!")
+                    Text("🏆 \(last.name) captured!")
                         .padding()
                         .background(Color.green.opacity(0.8))
                         .cornerRadius(10)
