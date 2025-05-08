@@ -38,11 +38,14 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
 
-            GameOverlayView(
-                capturedCount: capturedCount,
-                totalCount: totalCount,
-                capturedPlaces: capturedNames
-            )
+            
+               GameOverlayView(
+                    capturedCount: capturedCount,
+                    totalCount: totalCount,
+                    capturedPlaces: capturedNames
+                )
+            UserProfile(username: "Test User", lvl: 12)
+            
             if let last = places.last(where: { $0.isCaptured }) {
                 VStack {
                     Spacer()
