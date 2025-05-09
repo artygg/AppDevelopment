@@ -96,7 +96,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate, ObservableObject {
 @MainActor
 class PlacesViewModel: ObservableObject {
     @Published var places: [Place] = []
-    private let urlString = "http://192.168.1.239:8080/places"
+    private let urlString = "http://localhost:8080/places"
 
     func fetchPlaces() async {
         guard let url = URL(string: urlString) else { return }
