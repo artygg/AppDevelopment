@@ -72,7 +72,7 @@ struct ContentView: View {
                     totalCount: totalCount,
                     capturedPlaces: capturedNames
                 )
-            UserProfile(username: "Test User", lvl: 12, capturedPlaces: places)
+            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedPlaces)
             
             if let last = places.last(where: { $0.isCaptured }) {
                 VStack {
