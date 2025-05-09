@@ -58,7 +58,6 @@ struct UserProfile: View {
 
         var body: some View {
             ZStack {
-                // Background card
                 VStack(spacing: 20) {
                     HStack(alignment: .center) {
                         Image(systemName: "person.circle")
@@ -168,7 +167,6 @@ struct UserProfile: View {
                 .frame(maxWidth: .infinity)
                 .padding(16)
 
-                // Settings overlay
                 if isSettings {
                     Color.black.opacity(0.3)
                         .ignoresSafeArea()
@@ -190,7 +188,7 @@ struct UserProfile: View {
                     .cornerRadius(20)
                     .shadow(radius: 10)
                     .frame(maxWidth: .infinity)
-                    .padding(16) // Same padding as profile
+                    .padding(16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(2)
                 }
