@@ -1,8 +1,10 @@
 import SwiftUI
+import CoreLocation
 
 struct UserProfile: View {
     let username: String
     let lvl: Int
+    let capturedPlaces: [Place]
 
     @State private var isProfileIconClicked: Bool = false
 
@@ -36,7 +38,7 @@ struct UserProfile: View {
                         }
                     }
 
-                ProfileView(username: username, lvl: lvl) {
+                ProfileView(username: username, lvl: lvl, capturedPlaces: capturedPlaces) {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         isProfileIconClicked = false
                     }
@@ -50,6 +52,7 @@ struct UserProfile: View {
     struct ProfileView: View {
         var username: String
         var lvl: Int
+        var capturedPlaces: [Place] = []
         var onClose: () -> Void
 
         var body: some View {
@@ -110,6 +113,38 @@ struct UserProfile: View {
                 
                 Divider()
                 
+                if capturedPlaces.count > 0 {
+                    ScrollView {
+                                    VStack(spacing: 12) {
+                                        ForEach(capturedPlaces) { place in
+                                            HStack (spacing: 12) {
+                                                Image(systemName: place.placeIcon)
+                                                           .resizable()
+                                                           .frame(width: 40, height: 40)
+                                                           .foregroundColor(.blue)
+                                                Text("\(place.name)")
+                                                    .frame(maxWidth: .infinity)
+                                                    .padding()
+                                                    .background(Color.gray.opacity(0.1))
+                                                    .cornerRadius(12)
+                                            }
+                                        }
+                                    }
+                                }
+                    .frame(height: 5 * 60)
+                } else {
+                    VStack() {
+                        Text("No captured places yet...")
+                            .font(.title2)
+                            .bold()
+                    }
+                    .frame(height: 300)
+                }
+                
+                
+                
+                Divider()
+                
                 Button(action: {
                     onClose()
                 }) {
@@ -131,9 +166,21 @@ struct UserProfile: View {
         }
     }
 
-    struct UserProfile_Previews: PreviewProvider {
-        static var previews: some View {
-            UserProfile(username: "sofro", lvl: 12)
-        }
-    }
+//    struct UserProfile_Previews: PreviewProvider {
+//        static var previews: some View {
+//            UserProfile(username: "sofro", lvl: 12, capturedPlaces: [
+//                Place(
+//                    name: "Place A",
+//                    coordinate: CLLocationCoordinate2D(latitude: 52.0, longitude: 6.9),
+//                    isCaptured: true,
+//                    placeIcon: <#T##String#>
+//                ),
+//                Place(
+//                    name: "Place B",
+//                    coordinate: CLLocationCoordinate2D(latitude: 52.1, longitude: 6.8),
+//                    isCaptured: true
+//                )
+//                ])
+//        }
+//    }
 }
