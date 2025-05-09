@@ -43,9 +43,7 @@ struct GameOverlayView: View {
                         .padding(.horizontal, 12)
                         .background(Color.blue.opacity(0.2))
                         .cornerRadius(8)
-                    
                     Spacer()
-                    
                     Text("💥 Mines: 10")
                         .font(.subheadline)
                         .padding(.vertical, 6)
