@@ -24,10 +24,48 @@ struct ContentView: View {
     )
     private let captureRadius: Double = 100
 
+    @State private var places: [Place] = [
+        Place(
+            name: "Wildlands Adventure Zoo",
+            coordinate: CLLocationCoordinate2D(latitude: 52.780748, longitude: 6.887516),
+            placeIcon: "pawprint.fill"
+        ),
+        Place(
+            name: "Station Emmen",
+            coordinate: CLLocationCoordinate2D(latitude: 52.790453, longitude: 6.899715),
+            placeIcon: "train.side.front.car"
+        ),
+        Place(
+            name: "Rensenpark",
+            coordinate: CLLocationCoordinate2D(latitude: 52.785692, longitude: 6.897980),
+            placeIcon: "tree.fill"
+        ),
+        Place(
+            name: "Emmerdennen Bos",
+            coordinate: CLLocationCoordinate2D(latitude: 52.794587, longitude: 6.917414),
+            placeIcon: "leaf.fill"
+        ),
+        Place(
+            name: "Winkelcentrum De Weiert",
+            coordinate: CLLocationCoordinate2D(latitude: 52.782382, longitude: 6.894363),
+            placeIcon: "bag.fill"
+        ),
+        Place(
+            name: "NHL Stenden Emmen",
+            coordinate: CLLocationCoordinate2D(latitude: 52.778150, longitude: 6.911960),
+            placeIcon: "graduationcap.fill"
+        ),
+        Place(
+            name: "Danackers 70",
+            coordinate: CLLocationCoordinate2D(latitude: 52.780455, longitude: 6.94272),
+            placeIcon: "house.fill"
+        )
+    ]
 
-    private var capturedCount: Int { vm.places.filter { $0.isCaptured }.count }
-    private var totalCount: Int { vm.places.count }
-    private var capturedNames: [String] { vm.places.filter { $0.isCaptured }.map { $0.name } }
+    private var capturedCount: Int { places.filter { $0.isCaptured }.count }
+    private var totalCount: Int { places.count }
+    private var capturedNames: [String] { places.filter { $0.isCaptured }.map { $0.name } }
+    private var capturedPlaces: [Place] { places.filter { $0.isCaptured } }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -40,12 +78,16 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
 
-            GameOverlayView(
-                capturedCount: capturedCount,
-                totalCount: totalCount,
-                capturedPlaces: capturedNames
-            )
-            if let last = vm.places.last(where: { $0.isCaptured }) {
+            
+               GameOverlayView(
+                    capturedCount: capturedCount,
+                    totalCount: totalCount,
+                    capturedPlaces: capturedNames
+                )
+            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedPlaces)
+            
+            if let last = places.last(where: { $0.isCaptured }) {
+
                 VStack {
                     Spacer()
                     Text("🏆 \(last.name) captured!")
