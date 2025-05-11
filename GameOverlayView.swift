@@ -73,20 +73,7 @@ struct GameOverlayView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(capturedPlaces, id: \.self) { place in
-                            Text(place)
-                                .font(.subheadline)
-                                .padding(.vertical, 6)
-                                .padding(.horizontal, 12)
-                                .background(Color.blue.opacity(0.2))
-                                .cornerRadius(8)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
+    
             }
         }
         .padding(.top, 20)
