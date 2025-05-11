@@ -35,7 +35,6 @@ struct GameOverlayView: View {
             ProgressView(value: Double(capturedCount), total: Double(totalCount))
                 .padding(.horizontal)
             
-
             HStack {
                 HStack {
                     Text("💣 Bombs:")
