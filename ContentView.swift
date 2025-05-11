@@ -2,8 +2,20 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
+
+struct PlaceDTO: Codable {
+  let name: String
+  let coordinate: Coordinate
+}
+struct Coordinate: Codable {
+  let latitude: Double
+  let longitude: Double
+}
+
+
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var vm = PlacesViewModel()
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 52.78, longitude: 6.9),
@@ -58,7 +70,7 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .top) {
             Map(position: $region) {
-                ForEach(places) { place in
+                ForEach(vm.places) { place in
                     Marker(place.name, coordinate: place.coordinate)
                         .tint(place.isCaptured ? .green : .blue)
                 }
@@ -75,6 +87,7 @@ struct ContentView: View {
             UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedPlaces)
             
             if let last = places.last(where: { $0.isCaptured }) {
+
                 VStack {
                     Spacer()
                     Text("🏆 \(last.name) captured!")
@@ -90,18 +103,19 @@ struct ContentView: View {
             }
         }
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { userLocation in
-            for index in places.indices where !places[index].isCaptured {
+            for index in vm.places.indices where !vm.places[index].isCaptured {
                 let distance = userLocation.distance(
                     from: CLLocation(
-                        latitude: places[index].coordinate.latitude,
-                        longitude: places[index].coordinate.longitude
+                        latitude: vm.places[index].coordinate.latitude,
+                        longitude: vm.places[index].coordinate.longitude
                     )
                 )
                 if distance < captureRadius {
-                    places[index].isCaptured = true
+                    vm.places[index].isCaptured = true
                 }
             }
         }
+        .task { await vm.fetchPlaces()}
     }
 }
 
@@ -118,6 +132,34 @@ class LocationManager: NSObject, CLLocationManagerDelegate, ObservableObject {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         lastLocation = locations.last
+    }
+}
+
+@MainActor
+class PlacesViewModel: ObservableObject {
+    @Published var places: [Place] = []
+    private let urlString = "http://localhost:8080/places"
+
+    func fetchPlaces() async {
+        guard let url = URL(string: urlString) else { return }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let dtos = try JSONDecoder().decode([PlaceDTO].self, from: data)
+            let mapped = dtos.map { dto in
+                Place(
+                    name: dto.name,
+                    coordinate: CLLocationCoordinate2D(
+                        latitude:  dto.coordinate.latitude,
+                        longitude: dto.coordinate.longitude
+                    )
+                )
+            }
+
+            places = mapped
+        } catch {
+            print("Fetch failed:", error)
+        }
     }
 }
 
