@@ -1,0 +1,24 @@
+//
+//  EmmenLocations.txt
+//  AppDevelopment
+//
+//  Created by Sofronie Albu on 09/05/2025.
+//
+
+Special places in Emmen
+
+1. Wildlands Adventure Zoo Emmen
+2. Veenpark
+3. Hunebedden (Dolmens)
+4. Museum of Contemporary Tibetan Art
+5. AGA Museum
+6. Stichting Museum Ergens in Nederland 1939–1945
+7. Rensen Theater
+8. Atlas Theater
+9. Micksart Collectief
+10. Grote Rietplas
+11. De Hondsrug UNESCO Geopark
+12. Park Sandur
+13. Centrum Emmen
+14. De Stip
+15. Grenszicht Molen
