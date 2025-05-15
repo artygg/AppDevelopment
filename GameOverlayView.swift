@@ -20,12 +20,6 @@ struct GameOverlayView: View {
                 Text("🏆 Captured: \(capturedCount)")
                     .font(.headline)
                 Spacer()
-//                Button(action: {
-//                    // TODO: Settings action
-//                }) {
-//                    Image(systemName: "gearshape.fill")
-//                        .font(.title2)
-//                }
             }
             .padding()
             .background(.ultraThinMaterial)
