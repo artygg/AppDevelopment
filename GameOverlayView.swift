@@ -17,9 +17,15 @@ struct GameOverlayView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("🏆 Captured: \(capturedCount)")
+                Text("🏆 Captured: \(capturedCount)/\(totalCount)")
                     .font(.headline)
                 Spacer()
+                Button(action: {
+                    // TODO: Settings action
+                }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.title2)
+                }
             }
             .padding()
             .background(.ultraThinMaterial)
@@ -28,31 +34,6 @@ struct GameOverlayView: View {
 
             ProgressView(value: Double(capturedCount), total: Double(totalCount))
                 .padding(.horizontal)
-            
-            HStack {
-                HStack {
-                    Text("💣 Bombs:")
-                        .bold()
-                    Text("10")
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Color.blue.opacity(0.2))
-                .cornerRadius(8)
-                
-                Spacer()
-                
-                HStack {
-                    Text("💥 Mines:")
-                        .bold()
-                    Text("20")
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Color.red.opacity(0.2))
-                .cornerRadius(8)
-            }
-            .padding(.horizontal, 16)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -65,9 +46,7 @@ struct GameOverlayView: View {
                             .cornerRadius(8)
                     }
                 }
-                .frame(maxWidth: .infinity)
                 .padding(.horizontal)
-    
             }
         }
         .padding(.top, 20)
