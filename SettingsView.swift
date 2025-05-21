@@ -1,10 +1,3 @@
-//
-//  Settings.swift
-//  AppDevelopment
-//
-//  Created by Sofronie Albu on 09/05/2025.
-//
-
 import SwiftUI
 
 struct SettinsView: View {
@@ -17,11 +10,12 @@ struct SettinsView: View {
                 Text("Settings")
                     .font(.title)
                     .bold()
+                    .foregroundColor(.primary)
                 Spacer()
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
                 }
             }
 
@@ -35,6 +29,7 @@ struct SettinsView: View {
                 VStack(alignment: .leading) {
                     Text(username)
                         .font(.headline)
+                        .foregroundColor(.primary)
                     Text("Signed in")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -53,7 +48,7 @@ struct SettinsView: View {
             Spacer()
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .frame(height: 600)
     }
 }
@@ -68,11 +63,11 @@ struct SettingsRow: View {
                 .foregroundColor(.blue)
                 .frame(width: 24)
             Text(label)
+                .foregroundColor(.primary)
             Spacer()
             Image(systemName: "chevron.right")
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)
         }
         .padding(.vertical, 8)
     }
 }
-

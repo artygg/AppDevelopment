@@ -24,6 +24,7 @@ struct UserProfile: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 60, height: 60)
                             .padding()
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -48,7 +49,7 @@ struct UserProfile: View {
         }
         .animation(.easeInOut(duration: 0.3), value: isProfileIconClicked)
     }
-    
+
     struct ProfileView: View {
         var username: String
         var lvl: Int
@@ -70,6 +71,7 @@ struct UserProfile: View {
                             Text(username)
                                 .font(.title2)
                                 .bold()
+                                .foregroundColor(.primary)
                             Text("Your lvl: \(lvl)")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -85,7 +87,7 @@ struct UserProfile: View {
                         }) {
                             Image(systemName: "gearshape.fill")
                                 .font(.title2)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)
                                 .padding(8)
                         }
                     }
@@ -96,7 +98,9 @@ struct UserProfile: View {
                         HStack {
                             Text("💣 Bombs:")
                                 .bold()
+                                .foregroundColor(.primary)
                             Text("+10/hr")
+                                .foregroundColor(.primary)
                         }
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
@@ -108,7 +112,9 @@ struct UserProfile: View {
                         HStack {
                             Text("💥 Mines:")
                                 .bold()
+                                .foregroundColor(.primary)
                             Text("+20/hr")
+                                .foregroundColor(.primary)
                         }
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
@@ -128,6 +134,7 @@ struct UserProfile: View {
                                             .frame(width: 40, height: 40)
                                             .foregroundColor(.blue)
                                         Text(place.name)
+                                            .foregroundColor(.primary)
                                             .frame(maxWidth: .infinity)
                                             .padding()
                                             .background(Color.gray.opacity(0.1))
@@ -142,6 +149,7 @@ struct UserProfile: View {
                             Text("No captured places yet...")
                                 .font(.title2)
                                 .bold()
+                                .foregroundColor(.secondary)
                         }
                         .frame(height: 300)
                     }
@@ -161,9 +169,9 @@ struct UserProfile: View {
                     }
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(20)
-                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 4)
+                .shadow(color: .primary.opacity(0.2), radius: 10, x: 0, y: 4)
                 .frame(maxWidth: .infinity)
                 .padding(16)
 
@@ -184,7 +192,7 @@ struct UserProfile: View {
                         }
                     }
                     .padding()
-                    .background(Color.white)
+                    .background(Color(.systemBackground))
                     .cornerRadius(20)
                     .shadow(radius: 10)
                     .frame(maxWidth: .infinity)
@@ -196,21 +204,3 @@ struct UserProfile: View {
         }
     }
 }
-
-//    struct UserProfile_Previews: PreviewProvider {
-//        static var previews: some View {
-//            UserProfile(username: "sofro", lvl: 12, capturedPlaces: [
-//                Place(
-//                    name: "Place A",
-//                    coordinate: CLLocationCoordinate2D(latitude: 52.0, longitude: 6.9),
-//                    isCaptured: true,
-//                    placeIcon: <#T##String#>
-//                ),
-//                Place(
-//                    name: "Place B",
-//                    coordinate: CLLocationCoordinate2D(latitude: 52.1, longitude: 6.8),
-//                    isCaptured: true
-//                )
-//                ])
-//        }
-//    }
