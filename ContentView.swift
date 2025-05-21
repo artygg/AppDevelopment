@@ -152,7 +152,8 @@ class PlacesViewModel: ObservableObject {
                     coordinate: CLLocationCoordinate2D(
                         latitude:  dto.coordinate.latitude,
                         longitude: dto.coordinate.longitude
-                    )
+                    ),
+                    placeIcon:"house.fill"
                 )
             }
 
