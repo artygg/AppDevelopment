@@ -2,8 +2,12 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
+
+// --- Main ContentView ---
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var decodedVM = DecodedPlacesViewModel()
+    @StateObject private var iconLoader = CategoryIconLoader()
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 52.78, longitude: 6.9),
@@ -22,7 +26,6 @@ struct ContentView: View {
         Place(name: "Danackers 70", coordinate: CLLocationCoordinate2D(latitude: 52.780455, longitude: 6.94272)),
     ]
 
-
     private var capturedCount: Int { places.filter { $0.isCaptured }.count }
     private var totalCount: Int { places.count }
     private var capturedNames: [String] { places.filter { $0.isCaptured }.map { $0.name } }
@@ -30,14 +33,36 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .top) {
             Map(position: $region) {
+                // Game logic places
                 ForEach(places) { place in
                     Marker(place.name, coordinate: place.coordinate)
                         .tint(place.isCaptured ? .green : .blue)
+                }
+                // Backend places with icons
+                ForEach(decodedVM.places) { place in
+                    let iconName = iconLoader.mapping["\(place.category_id)"] ?? "mappin.circle.fill"
+                    // DEBUG: print the icon being used
+                    // print("Category: \(place.category_id), icon: \(iconName)")
+                    Annotation(place.name, coordinate: CLLocationCoordinate2D(
+                        latitude: place.coordinate.latitude,
+                        longitude: place.coordinate.longitude
+                    )) {
+                        VStack(spacing: 0) {
+                            Image(systemName: iconName)
+                                .font(.title)
+                                .foregroundColor(.blue)
+                            Text(place.name)
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                // .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6)) // Remove for plain text
+                        }
+                    }
                 }
                 UserAnnotation()
             }
             .ignoresSafeArea()
 
+            // ... overlays unchanged ...
             GameOverlayView(
                 capturedCount: capturedCount,
                 totalCount: totalCount,
@@ -71,9 +96,14 @@ struct ContentView: View {
                 }
             }
         }
+        .task {
+            await iconLoader.fetchIcons()
+            await decodedVM.fetchPlaces()
+        }
     }
 }
 
+// --- Your LocationManager (unchanged) ---
 class LocationManager: NSObject, CLLocationManagerDelegate, ObservableObject {
     private let manager = CLLocationManager()
     @Published var lastLocation: CLLocation?
