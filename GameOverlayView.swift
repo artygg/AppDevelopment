@@ -48,6 +48,13 @@ struct GameOverlayView: View {
                 }
                 .padding(.horizontal)
             }
+            HStack {
+                Spacer()
+                Compass(diameter: 50)
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 15)
+
         }
         .padding(.top, 20)
     }
