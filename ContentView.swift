@@ -8,6 +8,8 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @StateObject private var decodedVM = DecodedPlacesViewModel()
     @StateObject private var iconLoader = CategoryIconLoader()
+    @StateObject private var webSocketManager = WebSocketManager()
+    
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 52.78, longitude: 6.9),
@@ -99,6 +101,7 @@ struct ContentView: View {
         .task {
             await iconLoader.fetchIcons()
             await decodedVM.fetchPlaces()
+            webSocketManager.connect() 
         }
     }
 }
