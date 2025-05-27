@@ -11,6 +11,7 @@ struct Quiz: Codable {
     let place_id: String
     let questions: [QuizQuestion]
 }
+
 struct QuizQuestion: Codable {
     let text: String
     let options: [String]
@@ -27,12 +28,10 @@ struct QuizView: View {
     @State private var correctCount: Int = 0
     @State private var showResult: Bool = false
 
-    // Threshold for capturing
     let passCount = 5
 
     var body: some View {
         VStack(spacing: 0) {
-            // HEADER
             VStack(spacing: 8) {
                 HStack {
                     Button(action: { onDismiss(false) }) {
@@ -61,8 +60,7 @@ struct QuizView: View {
             .padding(.bottom, 12)
 
             Spacer(minLength: 0)
-            
-            // QUESTION
+
             if !showResult {
                 let q = quiz.questions[questionIndex]
                 VStack(spacing: 18) {
@@ -77,12 +75,9 @@ struct QuizView: View {
                         .cornerRadius(18)
                         .padding(.horizontal, 20)
 
-                    // ANSWERS
                     ForEach(q.options.indices, id: \.self) { i in
                         Button(action: {
-                            withAnimation {
-                                selected = i
-                            }
+                            withAnimation { selected = i }
                         }) {
                             Text(q.options[i])
                                 .font(.headline)
@@ -107,7 +102,6 @@ struct QuizView: View {
 
             Spacer()
 
-            // FOOTER
             VStack {
                 Divider()
                 if showResult {
@@ -122,28 +116,22 @@ struct QuizView: View {
                             Text("🎉 You captured the place!")
                                 .font(.title2)
                                 .foregroundColor(.green)
-                            Button("Done") {
-                                onDismiss(true) // CAPTURED
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.blue)
+                            Button("Done") { onDismiss(true) }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.blue)
                         } else {
                             Text("Try again to capture the place!")
                                 .font(.title3)
                                 .foregroundColor(.red)
-                            Button("Close") {
-                                onDismiss(false) // NOT captured
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.gray)
+                            Button("Close") { onDismiss(false) }
+                                .buttonStyle(.bordered)
+                                .tint(.gray)
                         }
                     }
                 } else {
                     Button(action: {
                         if let selected = selected {
-                            if selected == quiz.questions[questionIndex].answer {
-                                correctCount += 1
-                            }
+                            if selected == quiz.questions[questionIndex].answer { correctCount += 1 }
                             if questionIndex + 1 < quiz.questions.count {
                                 questionIndex += 1
                                 self.selected = nil

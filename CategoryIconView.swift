@@ -13,7 +13,6 @@ struct CategoryIconView: View {
 
     var body: some View {
         let iconName = mapping["\(categoryID)"] ?? "mappin.circle.fill"
-        Image(systemName: iconName)
-            .font(.title)
+        Image(systemName: iconName).font(.title)
     }
 }
