@@ -10,16 +10,19 @@ import Foundation
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
-    private let urlString = "http://localhost:8080/places" // Change if backend address differs
-
+    private let urlString = "http://localhost:8080/places"
     func fetchPlaces() async {
         guard let url = URL(string: urlString) else { return }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            let loadedPlaces = try JSONDecoder().decode([DecodedPlace].self, from: data)
-            places = loadedPlaces
+            places = try JSONDecoder().decode([DecodedPlace].self, from: data)
         } catch {
             print("Failed to fetch places:", error)
+        }
+    }
+    func markCaptured(_ id: UUID) {
+        if let idx = places.firstIndex(where: { $0.id == id }) {
+            places[idx].isCaptured = true
         }
     }
 }
