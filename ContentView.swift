@@ -23,6 +23,11 @@ struct ContentView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
       )
     )
+
+    @State private var showCamera = false
+    @State private var capturedImage: UIImage?
+
+    
     var isAdmin: Bool = true // FOR DEV PURPOSES
     private let captureRadius: Double = 100
 
@@ -33,6 +38,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            
             if isAdmin {
                 AdminMapView(
                     places: $vm.places,
@@ -57,6 +63,30 @@ struct ContentView: View {
             )
             UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedPlaces)
             
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showCamera = true
+                    }) {
+                        Image(systemName: "camera")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                            .shadow(radius: 5)
+                    }
+                    Spacer()
+                }
+                .padding(.bottom, 30)
+            }
+            .sheet(isPresented: $showCamera) {
+                CameraView(image: $capturedImage)
+            }
+
+
             if showCaptureBanner,
                let last = vm.places.last(where: { $0.isCaptured }) {
                     VStack {
@@ -92,6 +122,7 @@ struct ContentView: View {
             }
         }
         .task { await vm.fetchPlaces()}
+
     }
 }
 
