@@ -1,5 +1,3 @@
-//
-
 import SwiftUI
 import MapKit
 import CoreLocation
@@ -18,7 +16,6 @@ struct ContentView: View {
     )
     
     private let captureRadius: Double = 100
-    
     @State private var showCapturePopup = false
     @State private var placeToCapture: DecodedPlace?
     @State private var showQuiz = false
@@ -26,10 +23,10 @@ struct ContentView: View {
     @State private var loadingQuiz = false
     @State private var skippedPlaces = Set<String>()
     
-    private var capturedCount: Int { decodedVM.places.filter(\.isCaptured).count }
+    private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
     private var totalCount: Int     { decodedVM.places.count }
     private var capturedNames: [String] {
-        decodedVM.places.filter(\.isCaptured).map(\.name)
+        decodedVM.places.filter(\.captured).map(\.name)
     }
     
     var body: some View {
@@ -38,9 +35,11 @@ struct ContentView: View {
                 ForEach(decodedVM.places) { place in
                     Annotation(place.name, coordinate: place.clCoordinate) {
                         VStack(spacing: 0) {
-                            CategoryIconView(categoryID: place.category_id,
-                                             mapping: iconLoader.mapping)
-                                .foregroundColor(place.isCaptured ? .green : .blue)
+                            CategoryIconView(
+                                categoryID: place.category_id,
+                                iconName: place.iconName
+                            )
+                            .foregroundColor(place.captured ? .green : .blue)
                             Text(place.name)
                                 .font(.caption2)
                                 .padding(.horizontal, 6)
@@ -80,7 +79,7 @@ struct ContentView: View {
                 capturedPlaces: capturedNames
             )
             
-            if let last = decodedVM.places.last(where: \.isCaptured) {
+            if let last = decodedVM.places.last(where: \.captured) {
                 VStack {
                     Spacer()
                     Text("🏆 \(last.name) captured!")
@@ -112,6 +111,9 @@ struct ContentView: View {
                     QuizView(quiz: quiz, place: capturingPlace) { passed in
                         if passed {
                             decodedVM.markCaptured(capturingPlace.id)
+                            Task {
+                                await decodedVM.capturePlace(id: capturingPlace.id)
+                            }
                         } else {
                             skippedPlaces.insert(capturingPlace.name)
                         }
@@ -133,24 +135,15 @@ struct ContentView: View {
             .background(Color.white.opacity(0.98).ignoresSafeArea())
         }
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { userLocation in
-            for idx in decodedVM.places.indices where !decodedVM.places[idx].isCaptured {
-                let d = userLocation.distance(
-                    from: CLLocation(latitude: decodedVM.places[idx].coordinate.latitude,
-                                     longitude: decodedVM.places[idx].coordinate.longitude)
-                )
-                if d < captureRadius {
-                    decodedVM.places[idx].isCaptured = true
-                }
-            }
+            // Only open popup if within radius and not captured/skipped, but DON'T auto-capture!
             if !showQuiz && !showCapturePopup {
                 if let nearby = decodedVM.places.first(where: { place in
                     let d = userLocation.distance(
-                        from: CLLocation(latitude: place.coordinate.latitude,
-                                         longitude: place.coordinate.longitude)
+                        from: CLLocation(latitude: place.latitude, longitude: place.longitude)
                     )
                     return d < captureRadius &&
-                           !skippedPlaces.contains(place.name) &&
-                           !place.isCaptured
+                        !skippedPlaces.contains(place.name) &&
+                        !place.captured
                 }) {
                     placeToCapture = nearby
                     showCapturePopup = true
@@ -161,7 +154,7 @@ struct ContentView: View {
         }
         .task {
             await iconLoader.fetchIcons()
-            await decodedVM.fetchPlaces()
+            await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
             webSocketManager.connect()
         }
         .onDisappear {
