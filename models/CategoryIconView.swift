@@ -9,10 +9,10 @@ import SwiftUI
 
 struct CategoryIconView: View {
     let categoryID: Int
-    let mapping: [String: String]
+    let iconName: String
 
     var body: some View {
-        let iconName = mapping["\(categoryID)"] ?? "mappin.circle.fill"
-        Image(systemName: iconName).font(.title)
+        Image(systemName: iconName)
+            .font(.title)
     }
 }

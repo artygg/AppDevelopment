@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct Quiz: Codable {
-    let place_id: String
+    let place_id: Int
     let questions: [QuizQuestion]
 }
 
