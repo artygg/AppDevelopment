@@ -2,7 +2,7 @@
 //  Place.swift
 //  AppDevelopment
 //
-//  Created by Artyom Grishayev on 29/04/2025.
+//  Created by M1stake Sequence on 2025-06-05.
 //
 
 import CoreLocation
