@@ -10,7 +10,7 @@ struct ContentView: View {
     @StateObject private var webSocketManager  = WebSocketManager()
 
     // Toggle this at runtime (or via Settings) to enter admin mode
-    @State private var isAdmin = true          // <<< NEW
+    @State private var isAdmin = true        // <<< NEW
 
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
@@ -36,11 +36,10 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .top) {
 
-            // ---------- ADMIN SWITCH ----------
             if isAdmin {
                 // Admin interface to add / edit places
                 AdminMapView(
-                    places: $decodedVM.places,   // <-- using same data source
+                    places: $decodedVM.places, 
                     region: $region,
                     isAdmin: true
                 )
@@ -56,9 +55,10 @@ struct ContentView: View {
                                 )
                                 .foregroundColor(place.captured ? .green : .blue)
 
-                                Text(place.name)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
+//                                Text(place.name)
+//                                    .font(.caption2)
+//                                    .padding(.horizontal, 6)
+                                //DOUBLED TEXT
                             }
                         }
                     }
@@ -66,7 +66,6 @@ struct ContentView: View {
                 }
                 .ignoresSafeArea()
             }
-            // ---------- END ADMIN SWITCH ----------
 
             // Capture banner, overlay & HUD work the same for both modes
             if let place = placeToCapture, showCapturePopup {
