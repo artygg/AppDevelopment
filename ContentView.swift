@@ -9,9 +9,7 @@ struct ContentView: View {
     @StateObject private var iconLoader        = CategoryIconLoader()
     @StateObject private var webSocketManager  = WebSocketManager()
 
-    // Toggle this at runtime (or via Settings) to enter admin mode
-    @State private var isAdmin = true        // <<< NEW
-
+    @State private var isAdmin = true
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 52.78, longitude: 6.9),
@@ -19,8 +17,11 @@ struct ContentView: View {
         )
     )
 
-    // MARK: – Gameplay state
+    // MARK: – Gameplay / Camera
+    @State private var showCamera = false
+    @State private var capturedImage: UIImage?
     private let captureRadius: Double = 100
+
     @State private var showCapturePopup = false
     @State private var placeToCapture: DecodedPlace?
     @State private var showQuiz = false
@@ -35,16 +36,13 @@ struct ContentView: View {
     // MARK: – Body
     var body: some View {
         ZStack(alignment: .top) {
-
             if isAdmin {
-                // Admin interface to add / edit places
                 AdminMapView(
-                    places: $decodedVM.places, 
+                    places: $decodedVM.places,
                     region: $region,
                     isAdmin: true
                 )
             } else {
-                // Regular player map
                 Map(position: $region) {
                     ForEach(decodedVM.places) { place in
                         Annotation(place.name, coordinate: place.clCoordinate) {
@@ -54,11 +52,6 @@ struct ContentView: View {
                                     iconName:   place.iconName
                                 )
                                 .foregroundColor(place.captured ? .green : .blue)
-
-//                                Text(place.name)
-//                                    .font(.caption2)
-//                                    .padding(.horizontal, 6)
-                                //DOUBLED TEXT
                             }
                         }
                     }
@@ -67,7 +60,7 @@ struct ContentView: View {
                 .ignoresSafeArea()
             }
 
-            // Capture banner, overlay & HUD work the same for both modes
+            // Capture popup
             if let place = placeToCapture, showCapturePopup {
                 CapturePopup(
                     place: place,
@@ -97,6 +90,31 @@ struct ContentView: View {
                 capturedPlaces: capturedNames
             )
 
+//            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedNames)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showCamera = true
+                    }) {
+                        Image(systemName: "camera")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                            .shadow(radius: 5)
+                    }
+                    Spacer()
+                }
+                .padding(.bottom, 30)
+            }
+            .sheet(isPresented: $showCamera) {
+                CameraView(image: $capturedImage)
+            }
+
             if let last = decodedVM.places.last(where: \.captured) {
                 VStack {
                     Spacer()
@@ -112,7 +130,8 @@ struct ContentView: View {
                 .animation(.easeIn, value: capturedCount)
             }
         }
-        // ---------- QUIZ SHEET ----------
+
+        // Quiz screen
         .fullScreenCover(isPresented: $showQuiz) {
             ZStack {
                 if loadingQuiz {
@@ -152,18 +171,17 @@ struct ContentView: View {
             }
             .background(Color.white.opacity(0.98).ignoresSafeArea())
         }
-        // ---------- LOCATION / POPUP ----------
+
+        // Location update logic
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { userLocation in
-            /* Only open popup if within radius and not captured/skipped */
             if !showQuiz && !showCapturePopup {
                 if let nearby = decodedVM.places.first(where: { place in
                     let d = userLocation.distance(
-                        from: CLLocation(latitude: place.latitude,
-                                         longitude: place.longitude)
+                        from: CLLocation(latitude: place.latitude, longitude: place.longitude)
                     )
                     return d < captureRadius &&
-                           !skippedPlaces.contains(place.name) &&
-                           !place.captured
+                        !skippedPlaces.contains(place.name) &&
+                        !place.captured
                 }) {
                     placeToCapture = nearby
                     showCapturePopup = true
@@ -172,14 +190,24 @@ struct ContentView: View {
                 }
             }
         }
-        // ---------- STARTUP TASKS ----------
+
+        // Startup tasks
         .task {
             await iconLoader.fetchIcons()
             await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
             webSocketManager.connect()
         }
+
         .onDisappear {
             webSocketManager.disconnect()
         }
+    }
+}
+
+struct C_Previews: PreviewProvider {
+    static var previews: some View {
+        
+            ContentView()
+                
     }
 }
