@@ -3,18 +3,23 @@ import MapKit
 import CoreLocation
 
 struct ContentView: View {
+    // MARK: – State / Models
     @StateObject private var locationManager   = LocationManager()
     @StateObject private var decodedVM         = DecodedPlacesViewModel()
     @StateObject private var iconLoader        = CategoryIconLoader()
     @StateObject private var webSocketManager  = WebSocketManager()
-    
+
+    // Toggle this at runtime (or via Settings) to enter admin mode
+    @State private var isAdmin = true          // <<< NEW
+
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 52.78, longitude: 6.9),
             span:  MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
-    
+
+    // MARK: – Gameplay state
     private let captureRadius: Double = 100
     @State private var showCapturePopup = false
     @State private var placeToCapture: DecodedPlace?
@@ -22,34 +27,48 @@ struct ContentView: View {
     @State private var quiz: Quiz? = nil
     @State private var loadingQuiz = false
     @State private var skippedPlaces = Set<String>()
-    
+
     private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
-    private var totalCount: Int     { decodedVM.places.count }
-    private var capturedNames: [String] {
-        decodedVM.places.filter(\.captured).map(\.name)
-    }
-    
+    private var totalCount:    Int { decodedVM.places.count }
+    private var capturedNames: [String] { decodedVM.places.filter(\.captured).map(\.name) }
+
+    // MARK: – Body
     var body: some View {
         ZStack(alignment: .top) {
-            Map(position: $region) {
-                ForEach(decodedVM.places) { place in
-                    Annotation(place.name, coordinate: place.clCoordinate) {
-                        VStack(spacing: 0) {
-                            CategoryIconView(
-                                categoryID: place.category_id,
-                                iconName: place.iconName
-                            )
-                            .foregroundColor(place.captured ? .green : .blue)
-                            Text(place.name)
-                                .font(.caption2)
-                                .padding(.horizontal, 6)
+
+            // ---------- ADMIN SWITCH ----------
+            if isAdmin {
+                // Admin interface to add / edit places
+                AdminMapView(
+                    places: $decodedVM.places,   // <-- using same data source
+                    region: $region,
+                    isAdmin: true
+                )
+            } else {
+                // Regular player map
+                Map(position: $region) {
+                    ForEach(decodedVM.places) { place in
+                        Annotation(place.name, coordinate: place.clCoordinate) {
+                            VStack(spacing: 0) {
+                                CategoryIconView(
+                                    categoryID: place.category_id,
+                                    iconName:   place.iconName
+                                )
+                                .foregroundColor(place.captured ? .green : .blue)
+
+                                Text(place.name)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                            }
                         }
                     }
+                    UserAnnotation()
                 }
-                UserAnnotation()
+                .ignoresSafeArea()
             }
-            .ignoresSafeArea()
-            
+            // ---------- END ADMIN SWITCH ----------
+
+            // Capture banner, overlay & HUD work the same for both modes
             if let place = placeToCapture, showCapturePopup {
                 CapturePopup(
                     place: place,
@@ -66,19 +85,19 @@ struct ContentView: View {
                             await QuizService.handleQuizForPlace(
                                 place,
                                 setLoading: { self.loadingQuiz = $0 },
-                                setQuiz: { self.quiz = $0 }
+                                setQuiz:    { self.quiz = $0 }
                             )
                         }
                     }
                 )
             }
-            
+
             GameOverlayView(
                 capturedCount: capturedCount,
-                totalCount: totalCount,
+                totalCount:    totalCount,
                 capturedPlaces: capturedNames
             )
-            
+
             if let last = decodedVM.places.last(where: \.captured) {
                 VStack {
                     Spacer()
@@ -94,6 +113,7 @@ struct ContentView: View {
                 .animation(.easeIn, value: capturedCount)
             }
         }
+        // ---------- QUIZ SHEET ----------
         .fullScreenCover(isPresented: $showQuiz) {
             ZStack {
                 if loadingQuiz {
@@ -107,13 +127,12 @@ struct ContentView: View {
                         .padding(.top, 12)
                         Spacer()
                     }
-                } else if let quiz = quiz, let capturingPlace = placeToCapture {
+                } else if let quiz,
+                          let capturingPlace = placeToCapture {
                     QuizView(quiz: quiz, place: capturingPlace) { passed in
                         if passed {
                             decodedVM.markCaptured(capturingPlace.id)
-                            Task {
-                                await decodedVM.capturePlace(id: capturingPlace.id)
-                            }
+                            Task { await decodedVM.capturePlace(id: capturingPlace.id) }
                         } else {
                             skippedPlaces.insert(capturingPlace.name)
                         }
@@ -134,16 +153,18 @@ struct ContentView: View {
             }
             .background(Color.white.opacity(0.98).ignoresSafeArea())
         }
+        // ---------- LOCATION / POPUP ----------
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { userLocation in
-            // Only open popup if within radius and not captured/skipped, but DON'T auto-capture!
+            /* Only open popup if within radius and not captured/skipped */
             if !showQuiz && !showCapturePopup {
                 if let nearby = decodedVM.places.first(where: { place in
                     let d = userLocation.distance(
-                        from: CLLocation(latitude: place.latitude, longitude: place.longitude)
+                        from: CLLocation(latitude: place.latitude,
+                                         longitude: place.longitude)
                     )
                     return d < captureRadius &&
-                        !skippedPlaces.contains(place.name) &&
-                        !place.captured
+                           !skippedPlaces.contains(place.name) &&
+                           !place.captured
                 }) {
                     placeToCapture = nearby
                     showCapturePopup = true
@@ -152,6 +173,7 @@ struct ContentView: View {
                 }
             }
         }
+        // ---------- STARTUP TASKS ----------
         .task {
             await iconLoader.fetchIcons()
             await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
