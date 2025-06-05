@@ -2,6 +2,45 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
+func uploadImage(_ imageData: Data, fileName: String = "photo.jpg") {
+    let url = URL(string: "http://localhost:8080/upload-file")!
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+
+    let boundary = UUID().uuidString
+    request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+    var body = Data()
+
+    // Add image data
+    body.append("--\(boundary)\r\n".data(using: .utf8)!)
+    body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+    body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+    body.append(imageData)
+    body.append("\r\n".data(using: .utf8)!)
+
+    // Close boundary
+    body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+    request.httpBody = body
+
+    // Upload task
+    URLSession.shared.dataTask(with: request) { data, response, error in
+        if let error = error {
+            print("Upload error: \(error)")
+            return
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("No HTTP response.")
+            return
+        }
+
+        print("Upload finished with status: \(httpResponse.statusCode)")
+    }.resume()
+}
+
+
 struct ContentView: View {
     // MARK: – State / Models
     @StateObject private var locationManager   = LocationManager()
@@ -111,7 +150,12 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 30)
             }
-            .sheet(isPresented: $showCamera) {
+            .sheet(isPresented: $showCamera, onDismiss: {
+                if let image = capturedImage,
+                   let imageData = image.jpegData(compressionQuality: 0.8) {
+                    uploadImage(imageData)
+                }
+            }) {
                 CameraView(image: $capturedImage)
             }
 
