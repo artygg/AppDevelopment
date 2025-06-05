@@ -18,7 +18,7 @@ struct DecodedPlace: Decodable, Identifiable {
     var captured: Bool
     let user_captured: String?
     
-    // This property is NOT decoded from JSON, it's set manually in the ViewModel
+
     var iconName: String = "mappin.circle.fill"
     var iconColor: Color { captured ? .green : .blue }
     
@@ -31,3 +31,4 @@ struct DecodedPlace: Decodable, Identifiable {
         case id, name, latitude, longitude, category_id, captured, user_captured
     }
 }
+
