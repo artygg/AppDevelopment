@@ -2,7 +2,7 @@
 //  LocationManager.swift
 //  AppDevelopment
 //
-//  Created by Ekaterina Tarlykova on 2025-05-22.
+//  Created by M1stake Sequence on 2025-05-22.
 //
 
 import Foundation

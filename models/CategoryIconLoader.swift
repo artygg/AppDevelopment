@@ -2,7 +2,7 @@
 //  CategoryIconLoader.swift
 //  AppDevelopment
 //
-//  Created by Ekaterina Tarlykova on 2025-05-21.
+//  Created by M1stake Sequence on 2025-05-21.
 //
 
 import Foundation
@@ -10,7 +10,7 @@ import Foundation
 @MainActor
 class CategoryIconLoader: ObservableObject {
     @Published var mapping: [String: String] = [:]
-    private let urlString = "http://localhost:8080/category_icons.json" 
+    private let urlString = "http://localhost:8080/category_icons.json"
 
     func fetchIcons() async {
         guard let url = URL(string: urlString) else { return }
@@ -23,3 +23,4 @@ class CategoryIconLoader: ObservableObject {
         }
     }
 }
+
