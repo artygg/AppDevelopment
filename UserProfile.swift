@@ -186,7 +186,7 @@ struct UserProfile: View {
                             }
                         }
 
-                    SettinsView(username: username) {
+                    SettingsView(username: username) {
                         withAnimation {
                             isSettings = false
                         }
