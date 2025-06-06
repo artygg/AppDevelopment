@@ -9,12 +9,12 @@ import Foundation
 
 class WebSocketManager: ObservableObject {
     var webSocketTask: URLSessionWebSocketTask?
+    @Published var shouldRefreshPlaces = false
 
     func connect() {
         let url = URL(string: "ws://localhost:8080/ws")!
         webSocketTask = URLSession.shared.webSocketTask(with: url)
         webSocketTask?.resume()
-
         listen()
     }
 
@@ -27,13 +27,15 @@ class WebSocketManager: ObservableObject {
                 switch message {
                 case .string(let text):
                     print("Received: \(text)")
-                    // handle update here
+                    // Trigger update
+                    DispatchQueue.main.async {
+                        self?.shouldRefreshPlaces.toggle()
+                    }
                 default:
                     break
                 }
             }
 
-            // Keep listening
             self?.listen()
         }
     }

@@ -195,6 +195,7 @@ struct ContentView: View {
         .task {
             await iconLoader.fetchIcons()
             await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
+            decodedVM.bind(to: webSocketManager, iconMapping: iconLoader.mapping) 
             webSocketManager.connect()
         }
 

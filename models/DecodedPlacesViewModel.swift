@@ -1,9 +1,21 @@
 import Foundation
+import Combine
 
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
     private let urlString = "http://localhost:8080/places"
+    private var cancellable: AnyCancellable?
+    
+    func bind(to webSocketManager: WebSocketManager, iconMapping: [String: String]) {
+        cancellable = webSocketManager.$shouldRefreshPlaces
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                Task {
+                    await self?.fetchPlaces(iconMapping: iconMapping)
+                }
+            }
+    }
 
     func fetchPlaces(iconMapping: [String: String]) async {
         guard let url = URL(string: urlString) else { return }
