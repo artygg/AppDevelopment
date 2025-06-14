@@ -29,7 +29,7 @@ func createPlace(
     _ requestBody: CreatePlaceRequest,
     completion: @escaping (Result<PlaceResponse, Error>) -> Void
 ) {
-    guard let url = URL(string: "http://localhost:8080/api/places") else {
+    guard let url = URL(string: "\(Config.apiURL)/api/places") else {
         completion(.failure(NSError(
             domain: "PlaceAPI",
             code: 0,

@@ -9,7 +9,7 @@ import Foundation
 
 struct QuizService {
     static func fetchQuiz(for placeName: String, maxAttempts: Int = 3) async -> Quiz? {
-        let urlString = "http://localhost:8080/quiz?place=\(placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        let urlString = "\(Config.apiURL)/quiz?place=\(placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
         for attempt in 1...maxAttempts {
             do {
                 guard let url = URL(string: urlString) else { return nil }

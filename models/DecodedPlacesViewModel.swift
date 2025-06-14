@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
-    private let urlString = "http://localhost:8080/places"
+    private let urlString = "\(Config.apiURL)/places"
 
     func fetchPlaces(iconMapping: [String: String]) async {
         guard let url = URL(string: urlString) else { return }
@@ -27,7 +27,7 @@ class DecodedPlacesViewModel: ObservableObject {
     }
 
     func capturePlace(id: Int, user: String = "player1") async {
-        guard let url = URL(string: "http://localhost:8080/api/capture") else { return }
+        guard let url = URL(string: "\(Config.apiURL)/api/capture") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
