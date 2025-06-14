@@ -11,7 +11,7 @@ class WebSocketManager: ObservableObject {
     var webSocketTask: URLSessionWebSocketTask?
 
     func connect() {
-        let url = URL(string: "ws://localhost:8080/ws")!
+        let url = URL(string: Config.webSocketURL)!
         webSocketTask = URLSession.shared.webSocketTask(with: url)
         webSocketTask?.resume()
 
