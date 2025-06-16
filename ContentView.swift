@@ -31,10 +31,15 @@ struct ContentView: View {
     @State private var quiz: Quiz? = nil
     @State private var loadingQuiz = false
     @State private var skippedPlaces = Set<String>()
+    
 
     private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
     private var totalCount:    Int { decodedVM.places.count }
     private var capturedNames: [String] { decodedVM.places.filter(\.captured).map(\.name) }
+
+    private var capturedPlaces: [DecodedPlace] { decodedVM.places.filter(\.captured) }
+    
+
     
     func fetchImage(for placeID: Int) {
         ImageService.fetchImage(for: placeID) { image in
@@ -103,7 +108,8 @@ struct ContentView: View {
                 capturedPlaces: capturedNames
             )
 
-//            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedNames)
+
+            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedPlaces)
             SideButtonsView(
                 fetchImage: { fetchImage(for: 1) },
                 openCamera: { showCamera = true }
