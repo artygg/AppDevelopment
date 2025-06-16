@@ -2,44 +2,6 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
-func uploadImage(_ imageData: Data, fileName: String = "photo.jpg") {
-    let url = URL(string: "http://localhost:8080/upload-file")!
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-
-    let boundary = UUID().uuidString
-    request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
-    var body = Data()
-
-    // Add image data
-    body.append("--\(boundary)\r\n".data(using: .utf8)!)
-    body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-    body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-    body.append(imageData)
-    body.append("\r\n".data(using: .utf8)!)
-
-    // Close boundary
-    body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-
-    request.httpBody = body
-
-    // Upload task
-    URLSession.shared.dataTask(with: request) { data, response, error in
-        if let error = error {
-            print("Upload error: \(error)")
-            return
-        }
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            print("No HTTP response.")
-            return
-        }
-
-        print("Upload finished with status: \(httpResponse.statusCode)")
-    }.resume()
-}
-
 
 struct ContentView: View {
     // MARK: – State / Models
@@ -47,6 +9,8 @@ struct ContentView: View {
     @StateObject private var decodedVM         = DecodedPlacesViewModel()
     @StateObject private var iconLoader        = CategoryIconLoader()
     @StateObject private var webSocketManager  = WebSocketManager()
+    @State private var showImageSheet = false
+    @State private var retrievedImage: UIImage? = nil
 
     @State private var isAdmin = true
     @State private var region = MapCameraPosition.region(
@@ -71,6 +35,16 @@ struct ContentView: View {
     private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
     private var totalCount:    Int { decodedVM.places.count }
     private var capturedNames: [String] { decodedVM.places.filter(\.captured).map(\.name) }
+    
+    func fetchImage(for placeID: Int) {
+        ImageService.fetchImage(for: placeID) { image in
+            self.retrievedImage = image
+            self.showImageSheet = true
+        }
+    }
+    
+
+
 
     // MARK: – Body
     var body: some View {
@@ -130,30 +104,15 @@ struct ContentView: View {
             )
 
 //            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedNames)
+            SideButtonsView(
+                fetchImage: { fetchImage(for: 1) },
+                openCamera: { showCamera = true }
+            )
 
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        showCamera = true
-                    }) {
-                        Image(systemName: "camera")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.blue)
-                            .clipShape(Circle())
-                            .shadow(radius: 5)
-                    }
-                    Spacer()
-                }
-                .padding(.bottom, 30)
-            }
             .sheet(isPresented: $showCamera, onDismiss: {
                 if let image = capturedImage,
                    let imageData = image.jpegData(compressionQuality: 0.8) {
-                    uploadImage(imageData)
+                    ImageService.uploadImage(imageData)
                 }
             }) {
                 CameraView(image: $capturedImage)
@@ -244,7 +203,17 @@ struct ContentView: View {
 
         .onDisappear {
             webSocketManager.disconnect()
+        }.sheet(isPresented: $showImageSheet) {
+            if let image = retrievedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .padding()
+            } else {
+                Text("Failed to load image.")
+            }
         }
+
     }
 }
 

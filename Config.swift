@@ -9,7 +9,7 @@
 import Foundation
 
 struct Config {
-    static let apiURLBaseString = "localhost:8080"
+    static let apiURLBaseString = "192.168.1.57:8080"
     static let webSocketURL = "ws://\(apiURLBaseString)/ws"
     static let apiURL = "http://\(apiURLBaseString)"
 }
