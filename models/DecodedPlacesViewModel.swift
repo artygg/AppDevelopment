@@ -9,11 +9,13 @@ class DecodedPlacesViewModel: ObservableObject {
         guard let url = URL(string: urlString) else { return }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
+            print("data: ", data)
             var decodedPlaces = try JSONDecoder().decode([DecodedPlace].self, from: data)
             for idx in decodedPlaces.indices {
                 let catIDString = "\(decodedPlaces[idx].category_id)"
                 decodedPlaces[idx].iconName = iconMapping[catIDString] ?? "mappin.circle.fill"
             }
+            
             self.places = decodedPlaces
         } catch {
             print("Failed to fetch places:", error)
