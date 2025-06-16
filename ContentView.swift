@@ -28,11 +28,13 @@ struct ContentView: View {
     @State private var quiz: Quiz? = nil
     @State private var loadingQuiz = false
     @State private var skippedPlaces = Set<String>()
+    
 
     private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
     private var totalCount:    Int { decodedVM.places.count }
     private var capturedNames: [String] { decodedVM.places.filter(\.captured).map(\.name) }
-
+    private var capturedPlaces: [DecodedPlace] { decodedVM.places.filter(\.captured) }
+    
     // MARK: – Body
     var body: some View {
         ZStack(alignment: .top) {
@@ -90,7 +92,7 @@ struct ContentView: View {
                 capturedPlaces: capturedNames
             )
 
-//            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedNames)
+            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedPlaces)
 
             VStack {
                 Spacer()
