@@ -2,12 +2,15 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
+
 struct ContentView: View {
     // MARK: – State / Models
     @StateObject private var locationManager   = LocationManager()
     @StateObject private var decodedVM         = DecodedPlacesViewModel()
     @StateObject private var iconLoader        = CategoryIconLoader()
     @StateObject private var webSocketManager  = WebSocketManager()
+    @State private var showImageSheet = false
+    @State private var retrievedImage: UIImage? = nil
 
     @State private var isAdmin = true
     @State private var region = MapCameraPosition.region(
@@ -32,6 +35,16 @@ struct ContentView: View {
     private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
     private var totalCount:    Int { decodedVM.places.count }
     private var capturedNames: [String] { decodedVM.places.filter(\.captured).map(\.name) }
+    
+    func fetchImage(for placeID: Int) {
+        ImageService.fetchImage(for: placeID) { image in
+            self.retrievedImage = image
+            self.showImageSheet = true
+        }
+    }
+    
+
+
 
     // MARK: – Body
     var body: some View {
@@ -91,27 +104,17 @@ struct ContentView: View {
             )
 
 //            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedNames)
+            SideButtonsView(
+                fetchImage: { fetchImage(for: 1) },
+                openCamera: { showCamera = true }
+            )
 
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        showCamera = true
-                    }) {
-                        Image(systemName: "camera")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.blue)
-                            .clipShape(Circle())
-                            .shadow(radius: 5)
-                    }
-                    Spacer()
+            .sheet(isPresented: $showCamera, onDismiss: {
+                if let image = capturedImage,
+                   let imageData = image.jpegData(compressionQuality: 0.8) {
+                    ImageService.uploadImage(imageData)
                 }
-                .padding(.bottom, 30)
-            }
-            .sheet(isPresented: $showCamera) {
+            }) {
                 CameraView(image: $capturedImage)
             }
 
@@ -200,7 +203,17 @@ struct ContentView: View {
 
         .onDisappear {
             webSocketManager.disconnect()
+        }.sheet(isPresented: $showImageSheet) {
+            if let image = retrievedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .padding()
+            } else {
+                Text("Failed to load image.")
+            }
         }
+
     }
 }
 
