@@ -6,13 +6,18 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct CategoryIconView: View {
     let categoryID: Int
     let iconName: String
 
+    private var resolvedName: String {
+        UIImage(systemName: iconName) == nil ? "questionmark.circle" : iconName
+    }
+
     var body: some View {
-        Image(systemName: iconName)
+        Image(systemName: resolvedName)
             .font(.title)
     }
 }

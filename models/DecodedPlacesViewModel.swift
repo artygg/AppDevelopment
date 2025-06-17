@@ -3,6 +3,12 @@ import Foundation
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
+    
+    private struct CaptureResponse: Decodable {
+        let place: DecodedPlace
+        let quiz: Quiz?
+    }
+    
     private let urlString = "\(Config.apiURL)/places"
 
     func fetchPlaces(iconMapping: [String: String]) async {
@@ -15,7 +21,6 @@ class DecodedPlacesViewModel: ObservableObject {
                 let catIDString = "\(decodedPlaces[idx].category_id)"
                 decodedPlaces[idx].iconName = iconMapping[catIDString] ?? "mappin.circle.fill"
             }
-            
             self.places = decodedPlaces
         } catch {
             print("Failed to fetch places:", error)
@@ -28,20 +33,25 @@ class DecodedPlacesViewModel: ObservableObject {
         }
     }
 
-    func capturePlace(id: Int, user: String = "player1") async {
-        guard let url = URL(string: "\(Config.apiURL)/api/capture") else { return }
+    func capturePlace(id: Int, user: String = "player1") async -> Quiz? {
+        guard let url = URL(string: "\(Config.apiURL)/api/capture") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let payload = CaptureRequest(place_id: id, user: user)
         request.httpBody = try? JSONEncoder().encode(payload)
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                // Successfully sent to backend
+                let resp = try JSONDecoder().decode(CaptureResponse.self, from: data)
+                // локально отмечаем место захваченным
+                markCaptured(resp.place.id)
+                return resp.quiz            // может быть nil
             }
+            return nil
         } catch {
             print("Failed to capture place on backend:", error)
+            return nil
         }
     }
 }

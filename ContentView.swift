@@ -2,16 +2,16 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
-
 struct ContentView: View {
     // MARK: – State / Models
     @StateObject private var locationManager   = LocationManager()
     @StateObject private var decodedVM         = DecodedPlacesViewModel()
     @StateObject private var iconLoader        = CategoryIconLoader()
     @StateObject private var webSocketManager  = WebSocketManager()
+    @AppStorage("mineCount") private var mineCount: Int = 0
+
     @State private var showImageSheet = false
     @State private var retrievedImage: UIImage? = nil
-
     @State private var isAdmin = true
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
@@ -32,19 +32,31 @@ struct ContentView: View {
     @State private var loadingQuiz = false
     @State private var skippedPlaces = Set<String>()
 
+    private let currentUser = "player1"
+
+    @State private var ownerQuiz: Quiz?
+    @State private var showOwnerQuiz = false
+
     private var capturedCount: Int { decodedVM.places.filter(\.captured).count }
     private var totalCount:    Int { decodedVM.places.count }
     private var capturedNames: [String] { decodedVM.places.filter(\.captured).map(\.name) }
-    
+
     func fetchImage(for placeID: Int) {
         ImageService.fetchImage(for: placeID) { image in
             self.retrievedImage = image
             self.showImageSheet = true
         }
     }
-    
 
-
+    private func annotationTapped(_ place: DecodedPlace) {
+        guard place.captured, place.user_captured == currentUser else { return }
+        Task {
+            if let q = await QuizService.fetchQuiz(for: place.name) {
+                ownerQuiz   = q
+                showOwnerQuiz = true
+            }
+        }
+    }
 
     // MARK: – Body
     var body: some View {
@@ -65,6 +77,11 @@ struct ContentView: View {
                                     iconName:   place.iconName
                                 )
                                 .foregroundColor(place.captured ? .green : .blue)
+                                .onTapGesture { annotationTapped(place) }
+
+                                Text(place.name)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
                             }
                         }
                     }
@@ -100,10 +117,10 @@ struct ContentView: View {
             GameOverlayView(
                 capturedCount: capturedCount,
                 totalCount:    totalCount,
-                capturedPlaces: capturedNames
+                capturedPlaces: capturedNames,
+                mineCount:     mineCount
             )
 
-//            UserProfile(username: "Test User", lvl: 12, capturedPlaces: capturedNames)
             SideButtonsView(
                 fetchImage: { fetchImage(for: 1) },
                 openCamera: { showCamera = true }
@@ -150,16 +167,30 @@ struct ContentView: View {
                     }
                 } else if let quiz,
                           let capturingPlace = placeToCapture {
-                    QuizView(quiz: quiz, place: capturingPlace) { passed in
-                        if passed {
-                            decodedVM.markCaptured(capturingPlace.id)
-                            Task { await decodedVM.capturePlace(id: capturingPlace.id) }
-                        } else {
-                            skippedPlaces.insert(capturingPlace.name)
-                        }
-                        loadingQuiz = false
-                        showQuiz = false
-                    }
+                    QuizView(
+                        quiz: quiz,
+                        place: capturingPlace,
+                        onDismiss: { passed in
+                            if passed {
+                                decodedVM.markCaptured(capturingPlace.id)
+                                mineCount += 1
+                                Task {
+                                    if let newQuiz = await decodedVM.capturePlace(
+                                        id: capturingPlace.id,
+                                        user: currentUser
+                                    ) {
+                                        ownerQuiz    = newQuiz
+                                        showOwnerQuiz = true
+                                    }
+                                }
+                            } else {
+                                skippedPlaces.insert(capturingPlace.name)
+                            }
+                            loadingQuiz = false
+                            showQuiz = false
+                        },
+                        currentUser: currentUser
+                    )
                 } else {
                     VStack {
                         Spacer()
@@ -203,7 +234,8 @@ struct ContentView: View {
 
         .onDisappear {
             webSocketManager.disconnect()
-        }.sheet(isPresented: $showImageSheet) {
+        }
+        .sheet(isPresented: $showImageSheet) {
             if let image = retrievedImage {
                 Image(uiImage: image)
                     .resizable()
@@ -213,14 +245,21 @@ struct ContentView: View {
                 Text("Failed to load image.")
             }
         }
-
+        .sheet(isPresented: $showOwnerQuiz) {
+            if let q = ownerQuiz {
+                OwnerQuizView(
+                    mineCount: $mineCount,
+                    quiz: q
+                ) {
+                    showOwnerQuiz = false
+                }
+            }
+        }
     }
 }
 
 struct C_Previews: PreviewProvider {
     static var previews: some View {
-        
-            ContentView()
-                
+        ContentView()
     }
 }
