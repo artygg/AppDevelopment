@@ -46,10 +46,10 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 self.isStyleLoaded = true
                 self.hideAllTextLabels(mapView: mapView)
                 
-                context.coordinator.registerIcons()
+                context.coordinator.registerIcons(for: self.colorScheme)
                 
                 print("Style loaded, updating annotations...")
-                context.coordinator.updateAnnotations()
+                context.coordinator.updateAnnotations(for: self.colorScheme)
             }
         }
         
@@ -105,8 +105,18 @@ struct MapboxViewWrapper: UIViewRepresentable {
         context.coordinator.places = places
         context.coordinator.userLocation = userLocation
         
+        if context.coordinator.currentColorScheme != colorScheme {
+            context.coordinator.currentColorScheme = colorScheme
+            context.coordinator.registeredIcons.removeAll()
+            context.coordinator.iconsRegistered = false
+        }
+        
+        if isStyleLoaded {
+            context.coordinator.registerIcons(for: colorScheme)
+        }
+        
         if !places.isEmpty && isStyleLoaded {
-            context.coordinator.updateAnnotations()
+            context.coordinator.updateAnnotations(for: colorScheme)
         } else {
             print("Skipping annotation update - places: \(places.count), styleLoaded: \(isStyleLoaded)")
         }
@@ -129,44 +139,109 @@ struct MapboxViewWrapper: UIViewRepresentable {
         var userLocation: CLLocation?
         var mapView: MapView?
         var annotationManager: PointAnnotationManager?
-        private var iconsRegistered = false
+        var iconsRegistered = false
+        var currentColorScheme: ColorScheme = .light
+        var registeredIcons: Set<String> = []
         
         init(_ parent: MapboxViewWrapper) {
             self.parent = parent
         }
         
-        func registerIcons() {
-            guard let mapView = mapView, !iconsRegistered else { return }
+        func registerIcons(for colorScheme: ColorScheme) {
+            guard let mapView = mapView else { return }
             
-            print("Registering icons...")
+            print("🔧 Registering icons for \(colorScheme == .dark ? "dark" : "light") theme...")
             
             let allIcons = Set(places.map { $0.placeIcon })
-            let knownSymbols = ["mappin.circle.fill", "building.2"]
+            
+            let knownSymbols = [
+                "mappin.circle.fill",
+                "building.2",
+                "fork.knife.circle.fill",
+                "die.face.5.fill",
+                "house.fill",
+                "car.fill",
+                "airplane",
+                "bed.double.fill",
+                "bag.fill",
+                "cart.fill",
+                "heart.fill",
+                "star.fill",
+                "flag.fill",
+                "camera.fill",
+                "phone.fill",
+                "envelope.fill"
+            ]
             
             let iconsToRegister = allIcons.union(Set(knownSymbols))
             
+            let iconColor: UIColor = colorScheme == .dark ? .white : .black
+            let backgroundColor: UIColor = colorScheme == .dark ? .black : .white
+            
             for iconName in iconsToRegister {
-                if let image = UIImage(systemName: iconName, withConfiguration: UIImage.SymbolConfiguration(pointSize: 32, weight: .medium)) {
+                if let themedImage = createThemedIcon(
+                    symbolName: iconName,
+                    iconColor: iconColor,
+                    backgroundColor: backgroundColor,
+                    colorScheme: colorScheme
+                ) {
                     do {
-                        try mapView.mapboxMap.style.addImage(image, id: iconName)
-                        print("Successfully registered icon: \(iconName)")
+                        let themedIconId = "\(iconName)_\(colorScheme == .dark ? "dark" : "light")"
+                        try mapView.mapboxMap.style.addImage(themedImage, id: themedIconId)
+                        print("Successfully registered themed icon: \(themedIconId)")
                     } catch {
-                        print("Failed to register icon '\(iconName)': \(error.localizedDescription)")
+                        print("Failed to register themed icon '\(iconName)': \(error.localizedDescription)")
                     }
                 } else {
-                    print("Failed to create UIImage for SF Symbol: \(iconName)")
+                    print("Failed to create themed UIImage for SF Symbol: \(iconName)")
                 }
             }
             
             iconsRegistered = true
-            print("Icon registration completed")
+            print("Themed icon registration completed")
         }
         
-        func updateAnnotations() {
-            print("UpdateAnnotations called")
+        private func createThemedIcon(
+            symbolName: String,
+            iconColor: UIColor,
+            backgroundColor: UIColor,
+            colorScheme: ColorScheme
+        ) -> UIImage? {
+            let size = CGSize(width: 40, height: 40)
+            let renderer = UIGraphicsImageRenderer(size: size)
+            
+            return renderer.image { context in
+                let cgContext = context.cgContext
+                
+                guard let symbolImage = UIImage(
+                    systemName: symbolName,
+                    withConfiguration: UIImage.SymbolConfiguration(pointSize: 28, weight: .medium)
+                ) else { return }
+                
+                let circleRect = CGRect(x: 4, y: 4, width: 32, height: 32)
+                cgContext.setFillColor(backgroundColor.cgColor)
+                cgContext.fillEllipse(in: circleRect)
+                
+                cgContext.setStrokeColor(iconColor.withAlphaComponent(0.3).cgColor)
+                cgContext.setLineWidth(1.0)
+                cgContext.strokeEllipse(in: circleRect)
+                
+                let iconRect = CGRect(x: 8, y: 8, width: 24, height: 24)
+                cgContext.saveGState()
+                cgContext.setFillColor(iconColor.cgColor)
+                
+                let coloredSymbol = symbolImage.withTintColor(iconColor, renderingMode: .alwaysOriginal)
+                coloredSymbol.draw(in: iconRect)
+                
+                cgContext.restoreGState()
+            }
+        }
+        
+        func updateAnnotations(for colorScheme: ColorScheme) {
+            print("UpdateAnnotations called for \(colorScheme == .dark ? "dark" : "light") theme")
             print("   - mapView is nil: \(mapView == nil)")
             print("   - places count: \(places.count)")
-            print("   - icons registered: \(iconsRegistered)")
+            print("   - registered icons count: \(registeredIcons.count)")
             
             guard let mapView = mapView else {
                 print("MapView is nil")
@@ -178,10 +253,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 return
             }
             
-            guard iconsRegistered else {
-                print("Icons not registered yet, skipping annotation update")
-                return
-            }
+            registerIcons(for: colorScheme)
             
             print("Starting annotation update with \(places.count) places")
             
@@ -193,10 +265,12 @@ struct MapboxViewWrapper: UIViewRepresentable {
             var newAnnotations: [PointAnnotation] = []
             
             for (index, place) in places.enumerated() {
-                let iconName = place.placeIcon.isEmpty ? "mappin.circle.fill" : place.placeIcon
+                let baseIconName = place.placeIcon.isEmpty ? "mappin.circle.fill" : place.placeIcon
+                
+                let themedIconName = "\(baseIconName)_\(colorScheme == .dark ? "dark" : "light")"
                 
                 var annotation = PointAnnotation(coordinate: place.coordinate)
-                annotation.iconImage = iconName
+                annotation.iconImage = themedIconName
                 annotation.textField = place.name
                 
                 annotation.iconSize = 1.0
@@ -205,33 +279,35 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 annotation.textOffset = [0, 1.5]
                 
                 annotation.textSize = 12
-                annotation.textColor = StyleColor(.label)
-                annotation.textHaloColor = StyleColor(.systemBackground)
+                annotation.textColor = StyleColor(colorScheme == .dark ? .white : .black)
+                annotation.textHaloColor = StyleColor(colorScheme == .dark ? .black : .white)
                 annotation.textHaloWidth = 1.0
                 
-                print("📍 [\(index)] \(place.name) -> \(iconName) at \(place.coordinate)")
+                print("[\(index)] \(place.name) -> \(themedIconName) at \(place.coordinate)")
                 newAnnotations.append(annotation)
             }
             
             annotationManager?.annotations = newAnnotations
-            print("Applied \(newAnnotations.count) annotations to manager")
+            print("Applied \(newAnnotations.count) themed annotations to manager")
             
-            debugAvailableIcons()
+            debugAvailableIcons(for: colorScheme)
         }
         
-        func debugAvailableIcons() {
+        func debugAvailableIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
             
-            print("Checking registered icons...")
+            print("Checking registered themed icons...")
             
-            let iconsToCheck = Set(places.map { $0.placeIcon }).union(["mappin.circle.fill", "building.2"])
+            let baseIcons = Set(places.map { $0.placeIcon }).union(["mappin.circle.fill", "building.2"])
+            let themeSuffix = colorScheme == .dark ? "dark" : "light"
             
-            for iconName in iconsToCheck {
+            for baseIconName in baseIcons {
+                let themedIconName = "\(baseIconName)_\(themeSuffix)"
                 do {
-                    let _ = try mapView.mapboxMap.style.image(withId: iconName)
-                    print("Icon '\(iconName)' is registered and available")
+                    let _ = try mapView.mapboxMap.style.image(withId: themedIconName)
+                    print("Themed icon '\(themedIconName)' is registered and available")
                 } catch {
-                    print("Icon '\(iconName)' is NOT available: \(error.localizedDescription)")
+                    print("Themed icon '\(themedIconName)' is NOT available: \(error.localizedDescription)")
                 }
             }
         }
