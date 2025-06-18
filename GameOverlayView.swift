@@ -7,19 +7,25 @@
 
 import SwiftUI
 
-/// Overlay view displaying capture progress, mine count and list of captured places
 struct GameOverlayView: View {
-    let capturedCount: Int
-    let totalCount: Int
+    let capturedCount:  Int
+    let totalCount:     Int
     let capturedPlaces: [String]
-    let mineCount: Int
+    let mineCount:      Int
+    var  openBoard:     () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("🏆 Captured: \(capturedCount)/\(totalCount)")
-                    .font(.headline)
+                Button(action: openBoard) {
+                    Label("\(capturedCount)/\(totalCount)",
+                          systemImage: "trophy.fill")
+                        .font(.headline)
+                }
+                .buttonStyle(.plain)
+
                 Spacer()
+
                 Label {
                     Text("\(mineCount)")
                         .fontWeight(.semibold)
@@ -30,19 +36,14 @@ struct GameOverlayView: View {
                 .padding(.vertical, 4)
                 .background(.ultraThinMaterial)
                 .cornerRadius(10)
-                Button(action: {
-                    // TODO: Settings action
-                }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.title2)
-                }
             }
             .padding()
             .background(.ultraThinMaterial)
             .cornerRadius(12)
             .padding(.horizontal)
 
-            ProgressView(value: Double(capturedCount), total: Double(totalCount))
+            ProgressView(value: Double(capturedCount),
+                         total: Double(totalCount))
                 .padding(.horizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -70,7 +71,6 @@ struct GameOverlayView: View {
     }
 }
 
-// MARK: - Preview
 struct GameOverlayView_Previews: PreviewProvider {
     static var previews: some View {
         GameOverlayView(

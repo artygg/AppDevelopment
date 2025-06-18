@@ -1,34 +1,35 @@
-//
-//  DecodedPlace.swift
-//  AppDevelopment
-//
-//  Created by M1stake Sequence on 2025-05-21.
-//
-
 import Foundation
 import CoreLocation
 import SwiftUI
 
-struct DecodedPlace: Decodable, Identifiable {
-    let id: Int
-    let name: String
-    let latitude: Double
-    let longitude: Double
+struct DecodedPlace: Identifiable, Codable {
+    let id:          Int
+    let name:        String
+    let latitude:    Double
+    let longitude:   Double
     let category_id: Int
-    var captured: Bool
-    let user_captured: String?
-    
+    var captured:    Bool
+    var user_captured: String?
+    var cooldown_until: Date?
 
+    // локальное (не приходит с сервера)
     var iconName: String = "mappin.circle.fill"
-    var iconColor: Color { captured ? .green : .blue }
-    
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, latitude, longitude, category_id,
+             captured, user_captured, cooldown_until
+        // iconName УБРАН из списка → не ожидается в JSON
+    }
+
     var clCoordinate: CLLocationCoordinate2D {
         .init(latitude: latitude, longitude: longitude)
     }
-    
-    // CodingKeys does NOT include iconName
-    private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category_id, captured, user_captured
+
+    func iconColor(for user: String) -> Color {
+        if captured {
+            return user_captured == user ? .green : .red
+        }
+        if let cd = cooldown_until, cd > Date() { return .gray }
+        return .blue
     }
 }
-

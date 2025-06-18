@@ -1,57 +1,85 @@
+//
+//  DecodedPlacesViewModel.swift
+//  AppDevelopment
+//
+//  Created by M1stake Sequence on 2025-05-22.
+//
+
 import Foundation
+import SwiftUI
 
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
-    
-    private struct CaptureResponse: Decodable {
-        let place: DecodedPlace
-        let quiz: Quiz?
-    }
-    
-    private let urlString = "\(Config.apiURL)/places"
 
+    @AppStorage("username") private var currentUser: String = "player1"
+    private let baseURL = Config.apiURL
+
+    // MARK: – DTO
+    private struct CaptureReq: Codable {
+        let place_id: Int
+        let user:     String
+        let passed:   Bool
+    }
+
+    // MARK: – Fetch places
     func fetchPlaces(iconMapping: [String: String]) async {
-        guard let url = URL(string: urlString) else { return }
+        guard let url = URL(string: "\(baseURL)/places") else { return }
+
+        var req = URLRequest(url: url)
+        req.setValue(currentUser, forHTTPHeaderField: "X-Player")
+
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            print("data: ", data)
-            var decodedPlaces = try JSONDecoder().decode([DecodedPlace].self, from: data)
-            for idx in decodedPlaces.indices {
-                let catIDString = "\(decodedPlaces[idx].category_id)"
-                decodedPlaces[idx].iconName = iconMapping[catIDString] ?? "mappin.circle.fill"
+            let (data, _) = try await URLSession.shared.data(for: req)
+
+            let iso: ISO8601DateFormatter = {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return f
+            }()
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .custom { d in
+                let s = try String(from: d)
+                if let t = iso.date(from: s) { return t }
+                throw DecodingError.dataCorrupted(
+                    .init(codingPath: d.codingPath,
+                          debugDescription: "Bad date: \(s)"))
             }
-            self.places = decodedPlaces
+
+            var decoded = try decoder.decode([DecodedPlace].self, from: data)
+            for i in decoded.indices {
+                decoded[i].iconName =
+                    iconMapping["\(decoded[i].category_id)"] ?? "mappin.circle.fill"
+            }
+            places = decoded
         } catch {
-            print("Failed to fetch places:", error)
+            print("fetchPlaces:", error)
         }
     }
 
+    // MARK: – Local state helpers
     func markCaptured(_ id: Int) {
         if let idx = places.firstIndex(where: { $0.id == id }) {
-            places[idx].captured = true
+            places[idx].captured      = true
+            places[idx].user_captured = currentUser
         }
     }
 
-    func capturePlace(id: Int, user: String = "player1") async -> Quiz? {
-        guard let url = URL(string: "\(Config.apiURL)/api/capture") else { return nil }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let payload = CaptureRequest(place_id: id, user: user)
-        request.httpBody = try? JSONEncoder().encode(payload)
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                let resp = try JSONDecoder().decode(CaptureResponse.self, from: data)
-                // локально отмечаем место захваченным
-                markCaptured(resp.place.id)
-                return resp.quiz            // может быть nil
-            }
-            return nil
-        } catch {
-            print("Failed to capture place on backend:", error)
-            return nil
-        }
+    // MARK: – Inform backend (success / fail)
+    func sendCapture(placeID: Int, passed: Bool) async {
+        guard let url = URL(string: "\(baseURL)/api/capture") else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = CaptureReq(
+            place_id: placeID,
+            user:     currentUser,
+            passed:   passed
+        )
+        req.httpBody = try? JSONEncoder().encode(payload)
+
+        _ = try? await URLSession.shared.data(for: req)
     }
 }
