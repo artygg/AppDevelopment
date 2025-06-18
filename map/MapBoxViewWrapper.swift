@@ -42,8 +42,12 @@ struct MapboxViewWrapper: UIViewRepresentable {
         mapView.mapboxMap.onEvery(event: .styleLoaded) { [weak mapView] _ in
             guard let mapView = mapView else { return }
             DispatchQueue.main.async {
+                print("Style loaded!")
                 self.isStyleLoaded = true
                 self.hideAllTextLabels(mapView: mapView)
+                
+                context.coordinator.registerIcons()
+                
                 print("Style loaded, updating annotations...")
                 context.coordinator.updateAnnotations()
             }
@@ -101,10 +105,10 @@ struct MapboxViewWrapper: UIViewRepresentable {
         context.coordinator.places = places
         context.coordinator.userLocation = userLocation
         
-        if !places.isEmpty {
+        if !places.isEmpty && isStyleLoaded {
             context.coordinator.updateAnnotations()
         } else {
-            print("No places to update, skipping annotation update")
+            print("Skipping annotation update - places: \(places.count), styleLoaded: \(isStyleLoaded)")
         }
         
         let newStyleURI = colorScheme == .dark ? StyleURI.dark : StyleURI.streets
@@ -125,15 +129,44 @@ struct MapboxViewWrapper: UIViewRepresentable {
         var userLocation: CLLocation?
         var mapView: MapView?
         var annotationManager: PointAnnotationManager?
+        private var iconsRegistered = false
         
         init(_ parent: MapboxViewWrapper) {
             self.parent = parent
         }
         
+        func registerIcons() {
+            guard let mapView = mapView, !iconsRegistered else { return }
+            
+            print("Registering icons...")
+            
+            let allIcons = Set(places.map { $0.placeIcon })
+            let knownSymbols = ["mappin.circle.fill", "building.2"]
+            
+            let iconsToRegister = allIcons.union(Set(knownSymbols))
+            
+            for iconName in iconsToRegister {
+                if let image = UIImage(systemName: iconName, withConfiguration: UIImage.SymbolConfiguration(pointSize: 32, weight: .medium)) {
+                    do {
+                        try mapView.mapboxMap.style.addImage(image, id: iconName)
+                        print("Successfully registered icon: \(iconName)")
+                    } catch {
+                        print("Failed to register icon '\(iconName)': \(error.localizedDescription)")
+                    }
+                } else {
+                    print("Failed to create UIImage for SF Symbol: \(iconName)")
+                }
+            }
+            
+            iconsRegistered = true
+            print("🔧 Icon registration completed")
+        }
+        
         func updateAnnotations() {
-            print("🔍 updateAnnotations called")
+            print("UpdateAnnotations called")
             print("   - mapView is nil: \(mapView == nil)")
             print("   - places count: \(places.count)")
+            print("   - icons registered: \(iconsRegistered)")
             
             guard let mapView = mapView else {
                 print("MapView is nil")
@@ -145,6 +178,11 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 return
             }
             
+            guard iconsRegistered else {
+                print("Icons not registered yet, skipping annotation update")
+                return
+            }
+            
             print("Starting annotation update with \(places.count) places")
             
             if annotationManager == nil {
@@ -152,36 +190,25 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 print("Created annotation manager")
             }
             
-            let knownSymbols = ["mappin.circle.fill", "building.2"]
-            
-            for symbol in knownSymbols {
-                if let image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 32)) {
-                    do {
-                        try mapView.mapboxMap.style.addImage(image, id: symbol)
-                        print("Registered symbol: \(symbol)")
-                    } catch {
-                        print("Symbol registration info for \(symbol): \(error.localizedDescription)")
-                    }
-                } else {
-                    print("Failed to create UIImage for: \(symbol)")
-                }
-            }
-            
             var newAnnotations: [PointAnnotation] = []
             
             for (index, place) in places.enumerated() {
-                let symbolName = knownSymbols.contains(place.placeIcon) ? place.placeIcon : "mappin.circle.fill"
+                let iconName = place.placeIcon.isEmpty ? "mappin.circle.fill" : place.placeIcon
                 
                 var annotation = PointAnnotation(coordinate: place.coordinate)
-                annotation.iconImage = symbolName
+                annotation.iconImage = iconName
                 annotation.textField = place.name
                 
-                print("📍 [\(index)] \(place.name) -> \(symbolName) at \(place.coordinate)")
+                annotation.iconSize = 1.0
+                
+                print("[\(index)] \(place.name) -> \(iconName) at \(place.coordinate)")
                 newAnnotations.append(annotation)
             }
             
             annotationManager?.annotations = newAnnotations
             print("Applied \(newAnnotations.count) annotations to manager")
+            
+            debugAvailableIcons()
         }
         
         func debugAvailableIcons() {
@@ -189,17 +216,17 @@ struct MapboxViewWrapper: UIViewRepresentable {
             
             print("Checking registered icons...")
             
-            let testSymbols = ["mappin.circle.fill", "building.2"]
-            for symbol in testSymbols {
+            let iconsToCheck = Set(places.map { $0.placeIcon }).union(["mappin.circle.fill", "building.2"])
+            
+            for iconName in iconsToCheck {
                 do {
-                    let image = try mapView.mapboxMap.style.image(withId: symbol)
-                    print("Icon '\(symbol)' is registered and available")
+                    let _ = try mapView.mapboxMap.style.image(withId: iconName)
+                    print("Icon '\(iconName)' is registered and available")
                 } catch {
-                    print("Icon '\(symbol)' is NOT available: \(error)")
+                    print("Icon '\(iconName)' is NOT available: \(error.localizedDescription)")
                 }
             }
         }
-
 
         @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
             guard let mapView = mapView, gesture.state == .ended else { return }
