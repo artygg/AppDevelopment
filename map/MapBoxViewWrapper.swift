@@ -159,7 +159,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
             }
             
             iconsRegistered = true
-            print("🔧 Icon registration completed")
+            print("Icon registration completed")
         }
         
         func updateAnnotations() {
@@ -201,7 +201,15 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 
                 annotation.iconSize = 1.0
                 
-                print("[\(index)] \(place.name) -> \(iconName) at \(place.coordinate)")
+                annotation.textAnchor = .top
+                annotation.textOffset = [0, 1.5]
+                
+                annotation.textSize = 12
+                annotation.textColor = StyleColor(.label)
+                annotation.textHaloColor = StyleColor(.systemBackground)
+                annotation.textHaloWidth = 1.0
+                
+                print("📍 [\(index)] \(place.name) -> \(iconName) at \(place.coordinate)")
                 newAnnotations.append(annotation)
             }
             
