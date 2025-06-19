@@ -401,6 +401,7 @@ struct ProfileView: View {
     @State private var isLoading = false
     @State private var showSettings = false
     @State private var showingAuth = false
+    @State private var showAllPlaces = false
     
     var body: some View {
         NavigationStack {
@@ -433,6 +434,9 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showingAuth) {
                 AuthenticationView()
+            }
+            .sheet(isPresented: $showAllPlaces) {
+                AllCapturedPlacesView(capturedPlaces: capturedPlaces)
             }
             .onAppear {
                 if isLoggedIn {
@@ -538,7 +542,7 @@ struct ProfileView: View {
                     
                     if !capturedPlaces.isEmpty {
                         Button("View All") {
-                            // TODO: add captured places handling
+                            showAllPlaces = true 
                         }
                         .font(.subheadline)
                         .foregroundColor(.blue)
@@ -665,7 +669,11 @@ struct ProfileView: View {
     // MARK: - Helper Functions
     
     func fetchCapturedPlaces() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/captured_places") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/captured_places") else {
+            print("Invalid URL")
+            return
+        }
+        
         isLoading = true
         
         var request = URLRequest(url: url)
@@ -675,11 +683,32 @@ struct ProfileView: View {
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                isLoading = false
-            }
-            if let data = data {
+                self.isLoading = false
+                
+                if let error = error {
+                    print("Network error:", error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Invalid response")
+                    return
+                }
+                
+                guard 200...299 ~= httpResponse.statusCode else {
+                    print("HTTP Error: \(httpResponse.statusCode)")
+                    return
+                }
+                
+                guard let data = data else {
+                    print("No data received")
+                    return
+                }
+                
                 do {
                     let decoded = try JSONDecoder().decode([CapturedPlaceResponse].self, from: data)
+                    print("Decoded \(decoded.count) places")
+                    
                     let places: [Place] = decoded.map { item in
                         Place(
                             name: item.name,
@@ -688,14 +717,16 @@ struct ProfileView: View {
                             isCaptured: item.captured
                         )
                     }
-                    DispatchQueue.main.async {
-                        capturedPlaces = places
-                    }
+                    
+                    self.capturedPlaces = places
+                    print("Updated capturedPlaces with \(places.count) items")
+                    
                 } catch {
                     print("Decoding error:", error)
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("Raw JSON response:", jsonString)
+                    }
                 }
-            } else if let error = error {
-                print("Network error:", error)
             }
         }.resume()
     }
