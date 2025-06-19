@@ -1,72 +1,249 @@
-//  OwnerQuizView.swift
-//  AppDevelopment
-//
-//  Created by M1stake Sequence on 2025-06-18.
-//
-
 import SwiftUI
-let minedTime = 5
+import MapKit
+import CoreLocation
 
-struct OwnerQuizView: View {
-    @Binding var mineCount: Int
+struct ContentView: View {
+    @StateObject private var locationManager  = LocationManager()
+    @StateObject private var decodedVM        = DecodedPlacesViewModel()
+    @StateObject private var iconLoader       = CategoryIconLoader()
+    @StateObject private var webSocketManager = WebSocketManager()
+    @AppStorage("username")  private var currentUser: String = "player1"
+    @AppStorage("mineCount") private var mineCount: Int = 0
 
-    @State private var mined: Set<String>
+    @State private var isAdmin = false
+    @State private var showCamera = false
+    @State private var capturedImage: UIImage?
+    @State private var showImageSheet = false
+    @State private var retrievedImage: UIImage?
+    @State private var showLeaderboard = false
 
-    
-    @State private var quiz: Quiz
-    let onClose: () -> Void
+    @State private var region = MapCameraPosition.region(
+        MKCoordinateRegion(
+            center: .init(latitude: 52.78, longitude: 6.90),
+            span:  .init(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        )
+    )
 
-    init(mineCount: Binding<Int>, quiz: Quiz, onClose: @escaping () -> Void) {
-        self._mineCount = mineCount
-        self._quiz      = State(initialValue: quiz)
-        self.onClose    = onClose
+    private let captureRadius: Double = 100
+    @State private var showCapturePopup = false
+    @State private var placeToCapture: DecodedPlace?
+    @State private var skippedPlaces   = Set<String>()
 
-        let preMined = quiz.questions
-            .filter { $0.timeLimit == minedTime }
-            .map(\.id)
+    @State private var showQuiz = false
+    @State private var loadingQuiz = false
+    @State private var quiz: Quiz?
 
-        _mined = State(initialValue: Set(preMined))
-    }
+    @State private var ownerQuiz: Quiz?
+    @State private var showOwnerQuiz = false
+
+    @State private var bannerPlace: DecodedPlace?
+    @State private var bannerTask: Task<Void, Never>?
+
+    private var myCaptured: [DecodedPlace] { decodedVM.places.filter { $0.captured && $0.user_captured == currentUser } }
+    private var capturedCount: Int { myCaptured.count }
+    private var capturedNames: [String] { myCaptured.map(\.name) }
+    private var totalCount: Int { decodedVM.places.count }
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(quiz.questions) { q in
-                    HStack {
-                        Text(q.text).font(.body).lineLimit(2)
-                        Spacer()
-                        if mined.contains(q.id) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundColor(.green)
-                        } else if mineCount > 0 {
-                            Button {
-                                mined.insert(q.id)
-                                mineCount -= 1
-                                if let idx = quiz.questions.firstIndex(where: { $0.id == q.id }) {
-                                        quiz.questions[idx].timeLimit = minedTime
-                                    }
-                                Task {
-                                    await MineService.plantMine(
-                                        placeID: quiz.place_id,
-                                        qid:     q.id
-                                    )
-                                }
-                            } label: {
-                                Image(systemName: "burst.fill")
-                                    .foregroundColor(.red)
+        ZStack(alignment: .top) {
+            mapLayer
+            if let p = placeToCapture, showCapturePopup { capturePopup(for: p) }
+            GameOverlayView(
+                capturedCount: capturedCount,
+                totalCount:    totalCount,
+                capturedPlaces: capturedNames,
+                mineCount:     mineCount,
+                openBoard:     { showLeaderboard = true }
+            )
+            SideButtonsView(
+                fetchImage: { fetchImage(for: 1) },
+                openCamera: { showCamera = true }
+            )
+            bannerView
+        }
+        .fullScreenCover(isPresented: $showQuiz) { quizCover }
+        .sheet(isPresented: $showCamera, onDismiss: uploadPhoto) { CameraView(image: $capturedImage) }
+        .sheet(isPresented: $showImageSheet) {
+            if let img = retrievedImage {
+                Image(uiImage: img).resizable().scaledToFit().padding()
+            } else { Text("Failed to load image.") }
+        }
+        .sheet(isPresented: $showOwnerQuiz) {
+            if let q = ownerQuiz {
+                OwnerQuizView(mineCount: $mineCount, quiz: q) { showOwnerQuiz = false }
+            }
+        }
+        .sheet(isPresented: $showLeaderboard) { LeaderboardView() }
+        .onReceive(locationManager.$lastLocation.compactMap { $0 }, perform: handleLocation)
+        .task { await startup() }
+        .onDisappear { webSocketManager.disconnect() }
+    }
+}
+
+private extension ContentView {
+
+    var mapLayer: some View {
+        Group {
+            if isAdmin {
+                AdminMapView(places: $decodedVM.places, region: $region, isAdmin: true)
+            } else {
+                Map(position: $region) {
+                    ForEach(decodedVM.places) { place in
+                        Annotation(place.name, coordinate: place.clCoordinate) {
+                            VStack(spacing: 0) {
+                                CategoryIconView(categoryID: place.category_id, iconName: place.iconName)
+                                    .foregroundColor(place.iconColor(for: currentUser))
+                                    .onTapGesture { annotationTapped(place) }
+                                Text(place.name)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 6)
+                    UserAnnotation()
+                }
+                .ignoresSafeArea()
+            }
+        }
+    }
+
+    func capturePopup(for place: DecodedPlace) -> some View {
+        CapturePopup(
+            place: place,
+            onClose: {
+                skippedPlaces.insert(place.name)
+                showCapturePopup = false
+            },
+            onCapture: {
+                showCapturePopup = false
+                loadingQuiz = true
+                showQuiz = true
+                Task {
+                    await QuizService.handleQuizForPlace(
+                        place,
+                        setLoading: { loadingQuiz = $0 },
+                        setQuiz:    { quiz = $0 }
+                    )
                 }
             }
-            .navigationTitle("Plant mines")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done", action: onClose)
+        )
+    }
+
+    var quizCover: some View {
+        ZStack {
+            if loadingQuiz {
+                VStack {
+                    Spacer()
+                    ProgressView("Loading Quiz…")
+                    Button("Close") {
+                        loadingQuiz = false
+                        showQuiz = false
+                    }
+                    .padding(.top, 12)
+                    Spacer()
                 }
+            } else if let q = quiz, let place = placeToCapture {
+                QuizView(quiz: q, place: place) { correct, elapsed in
+                    Task { @MainActor in
+                        let (captured, newQuiz) =
+                          await decodedVM.finishAttempt(placeID: place.id,
+                                                        correct: correct,
+                                                        elapsed: elapsed)
+
+                        if captured {
+                            mineCount += 1
+                            showBanner(place)
+                            if let nq = newQuiz { openOwnerQuiz(nq) }
+                        } else {
+                            skippedPlaces.insert(place.name)
+                        }
+
+                        loadingQuiz = false
+                        showQuiz    = false
+                        quiz        = nil
+                    }
+                }
+                .id(q.place_id) 
+            } else {
+                VStack { Spacer(); Text("No quiz."); Spacer() }
             }
+        }
+        .background(Color.white.opacity(0.98).ignoresSafeArea())
+    }
+    
+    private func openOwnerQuiz(_ quiz: Quiz) {
+        ownerQuiz     = quiz
+        showOwnerQuiz = true
+    }
+
+
+    var bannerView: some View {
+        Group {
+            if let p = bannerPlace {
+                VStack {
+                    Spacer()
+                    Text("🏆 \(p.name) captured!")
+                        .padding()
+                        .background(.green.opacity(0.85))
+                        .cornerRadius(10)
+                        .foregroundColor(.white)
+                        .font(.headline)
+                        .padding(.bottom, 40)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut, value: bannerPlace != nil)
+    }
+
+    func showBanner(_ place: DecodedPlace) {
+        bannerPlace = place
+        bannerTask?.cancel()
+        bannerTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            bannerPlace = nil
+        }
+    }
+
+    func handleLocation(_ loc: CLLocation) {
+        guard !showQuiz && !showCapturePopup else { return }
+        if let near = decodedVM.places.first(where: { p in
+            let d = loc.distance(from: .init(latitude: p.latitude, longitude: p.longitude))
+            let cd = p.cooldown_until != nil && p.cooldown_until! > Date()
+            return d < captureRadius && !skippedPlaces.contains(p.name) && !p.captured && !cd
+        }) {
+            placeToCapture = near
+            showCapturePopup = true
+        } else {
+            showCapturePopup = false
+        }
+    }
+
+    func startup() async {
+        await iconLoader.fetchIcons()
+        await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
+        webSocketManager.connect()
+    }
+
+    func annotationTapped(_ place: DecodedPlace) {
+        guard place.user_captured == currentUser else { return }
+        Task {
+            if let q = await QuizService.fetchQuiz(placeID: place.id) {
+                openOwnerQuiz(q)
+            }
+        }
+    }
+
+    func fetchImage(for placeID: Int) {
+        ImageService.fetchImage(for: placeID) { img in
+            retrievedImage = img
+            showImageSheet = true
+        }
+    }
+
+    func uploadPhoto() {
+        if let img = capturedImage, let data = img.jpegData(compressionQuality: 0.8) {
+            ImageService.uploadImage(data)
         }
     }
 }
