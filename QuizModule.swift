@@ -1,15 +1,7 @@
-//  QuizModule.swift
-//  AppDevelopment
-//
-//  Created by M1stake Sequence on 2025-05-22.
-//
-
 import SwiftUI
 
 private let passCount = 1
-
 private let defaultTime = 15
-
 
 struct Quiz: Codable {
     let place_id: Int
@@ -29,7 +21,6 @@ struct QuizView: View {
     let place: DecodedPlace
     var onFinish: (_ correct: Int, _ elapsed: Int) -> Void
 
-
     @State private var selected: Int? = nil
     @State private var skipped = false
     @State private var questionIndex: Int = 0
@@ -42,18 +33,16 @@ struct QuizView: View {
     @State private var startTime = DispatchTime.now()
     @State private var elapsedMs = 0
 
-
+    // New camera states
+    @State private var showCamera = false
+    @State private var capturedImage: UIImage? = nil
 
     var body: some View {
         VStack(spacing: 0) {
             header
-
             Spacer(minLength: 0)
-
             if !showResult { questionCard }
-
             Spacer()
-
             footer
         }
         .background(Color(white: 0.95).ignoresSafeArea())
@@ -63,7 +52,7 @@ struct QuizView: View {
     private var header: some View {
         VStack(spacing: 8) {
             HStack {
-                Button("Close") { onFinish(0,0) }
+                Button("Close") { onFinish(0, 0) }
                 Spacer()
             }
             Text(place.name)
@@ -125,10 +114,10 @@ struct QuizView: View {
         }
         .onAppear {
             if questionIndex == 0 {
-                    correctCount = 0
-                    startTime    = .now()
-                }
-                startTimer(for: q)
+                correctCount = 0
+                startTime = .now()
+            }
+            startTimer(for: q)
         }
         .animation(.easeInOut, value: selected)
         .padding(.bottom, 28)
@@ -137,7 +126,9 @@ struct QuizView: View {
     private var footer: some View {
         VStack {
             Divider()
-            if showResult { resultView } else {
+            if showResult {
+                resultView
+            } else {
                 HStack {
                     Button("Skip") {
                         skipped = true
@@ -162,15 +153,14 @@ struct QuizView: View {
 
     private var nextButton: some View {
         Button {
-                proceedAfterAnswer()      // ← ❷ NO direct increment here
-            } label: {
-                Text(questionIndex + 1 == quiz.questions.count ? "Finish"
-                                                              : "Next")
+            proceedAfterAnswer()
+        } label: {
+            Text(questionIndex + 1 == quiz.questions.count ? "Finish" : "Next")
                 .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.blue)
-            .disabled(selected == nil)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.blue)
+        .disabled(selected == nil)
     }
 
     private var resultView: some View {
@@ -194,6 +184,12 @@ struct QuizView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
 
+                Button("Take a Photo") {
+                    showCamera = true
+                }
+                .buttonStyle(.bordered)
+                .tint(.blue)
+
             } else {
                 Text("Try again to capture the place!")
                     .font(.title3)
@@ -202,9 +198,18 @@ struct QuizView: View {
                 Button("Close") {
                     onFinish(correctCount, elapsedMs)
                 }
-                    .buttonStyle(.bordered)
-                    .tint(.gray)
+                .buttonStyle(.bordered)
+                .tint(.gray)
             }
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraView(image: $capturedImage)
+                .onDisappear {
+                    if let image = capturedImage,
+                       let data = image.jpegData(compressionQuality: 0.8) {
+                        ImageService.uploadImage(data, placeID: place.id)
+                    }
+                }
         }
         .padding(.vertical, 16)
     }
@@ -213,7 +218,9 @@ struct QuizView: View {
         timer?.invalidate()
         secondsLeft = question.timeLimit ?? defaultTime
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if secondsLeft > 0 { secondsLeft -= 1 }
+            if secondsLeft > 0 {
+                secondsLeft -= 1
+            }
             if secondsLeft == 0 {
                 timer?.invalidate()
                 selected = -1
@@ -230,14 +237,15 @@ struct QuizView: View {
             showResult = true
             timer?.invalidate()
         }
-        if !skipped,
-               let choice = selected,
-               choice == quiz.questions[questionIndex].answer {
-                correctCount += 1
-            }
 
-            skipped  = false
-            selected = nil
+        if !skipped,
+           let choice = selected,
+           choice == quiz.questions[questionIndex].answer {
+            correctCount += 1
+        }
+
+        skipped = false
+        selected = nil
 
         if questionIndex + 1 < quiz.questions.count {
             questionIndex += 1
@@ -247,4 +255,4 @@ struct QuizView: View {
             finishQuiz()
         }
     }
-} 
+}
