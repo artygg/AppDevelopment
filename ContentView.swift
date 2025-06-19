@@ -12,6 +12,7 @@ struct ContentView: View {
 
     @State private var isAdmin = true
     @State private var showCamera = false
+    @State private var showProfile = false
     @State private var capturedImage: UIImage?
     @State private var showImageSheet = false
     @State private var retrievedImage: UIImage?
@@ -72,7 +73,8 @@ struct ContentView: View {
             )
             SideButtonsView(
                 fetchImage: { fetchImage(for: 1) },
-                openCamera: { showCamera = true }
+                openCamera: { showCamera = true },
+                openProfile: { showProfile = true }
             )
             bannerView
         }
@@ -82,6 +84,9 @@ struct ContentView: View {
             if let img = retrievedImage {
                 Image(uiImage: img).resizable().scaledToFit().padding()
             } else { Text("Failed to load image.") }
+        }
+        .sheet(isPresented: $showProfile) {
+            ProfileView()
         }
         .sheet(isPresented: $showOwnerQuiz) {
             if let q = ownerQuiz {

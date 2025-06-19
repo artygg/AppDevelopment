@@ -1,20 +1,17 @@
-//
-//  SideButtonsView.swift
-//  AppDevelopment
-//
-//  Created by Timofei Arefev on 16/06/2025.
-//
-
 import SwiftUI
 
 struct SideButtonsView: View {
     let fetchImage: () -> Void
     let openCamera: () -> Void
+    let openProfile: () -> Void
 
     var body: some View {
         VStack {
             Spacer()
-            VStack(spacing: 20) {
+
+            HStack {
+                Spacer()
+
                 Button(action: {
                     fetchImage()
                 }) {
@@ -27,6 +24,8 @@ struct SideButtonsView: View {
                         .shadow(radius: 5)
                 }
 
+                Spacer()
+
                 Button(action: {
                     openCamera()
                 }) {
@@ -38,10 +37,25 @@ struct SideButtonsView: View {
                         .clipShape(Circle())
                         .shadow(radius: 5)
                 }
+
+                Spacer()
+
+                Button(action: {
+                    openProfile()
+                }) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.title)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.gray)
+                        .clipShape(Circle())
+                        .shadow(radius: 5)
+                }
+
+                Spacer()
             }
-            .padding(.leading, 20)
-            Spacer()
+            .padding(.bottom, 30)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .ignoresSafeArea(edges: .bottom)
     }
 }
