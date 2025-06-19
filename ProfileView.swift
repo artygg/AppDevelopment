@@ -54,15 +54,36 @@ struct LoginRequest: Codable {
 }
 
 struct AuthResponse: Codable {
-    let token: String?
-    let user: User?
-    let message: String?
+    let user: User
+    let token: String
+    let refreshToken: String?
+    let expiresAt: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case user, token
+        case refreshToken = "refresh_token"
+        case expiresAt = "expires_at"
+    }
 }
 
 struct User: Codable {
-    let id: Int?
+    let id: Int
     let username: String
-    let email: String?
+    let email: String
+    let createdAt: String
+    let updatedAt: String
+    let isActive: Bool
+    let lastLoginAt: String?
+    let mapImageUrl: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, username, email
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case isActive = "is_active"
+        case lastLoginAt = "last_login_at"
+        case mapImageUrl = "map_image_url"
+    }
 }
 
 // MARK: - API Service
@@ -110,6 +131,8 @@ class APIService: ObservableObject {
                 if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
                     do {
                         let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+                        // Save user data including profile image
+                        self.saveUserData(from: authResponse)
                         completion(.success(authResponse))
                     } catch {
                         if let errorResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -171,6 +194,7 @@ class APIService: ObservableObject {
                 if httpResponse.statusCode == 200 {
                     do {
                         let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+                        self.saveUserData(from: authResponse)
                         completion(.success(authResponse))
                     } catch {
                         if let errorResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -190,6 +214,17 @@ class APIService: ObservableObject {
                 }
             }
         }.resume()
+    }
+    
+    private func saveUserData(from authResponse: AuthResponse) {
+        UserDefaults.standard.set(authResponse.token, forKey: "authToken")
+        UserDefaults.standard.set(authResponse.user.username, forKey: "username")
+        UserDefaults.standard.set(authResponse.user.email, forKey: "userEmail")
+        UserDefaults.standard.set(true, forKey: "isLoggedIn")
+        
+        if let mapImageUrl = authResponse.user.mapImageUrl {
+            UserDefaults.standard.set(mapImageUrl, forKey: "selectedAvatarURL")
+        }
     }
     
     func logout(completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -223,12 +258,21 @@ class APIService: ObservableObject {
             
             DispatchQueue.main.async {
                 if httpResponse.statusCode == 200 {
+                    self.clearUserData()
                     completion(.success(true))
                 } else {
                     completion(.failure(APIError.serverError(httpResponse.statusCode)))
                 }
             }
         }.resume()
+    }
+    
+    private func clearUserData() {
+        UserDefaults.standard.removeObject(forKey: "authToken")
+        UserDefaults.standard.removeObject(forKey: "username")
+        UserDefaults.standard.removeObject(forKey: "userEmail")
+        UserDefaults.standard.removeObject(forKey: "selectedAvatarURL")
+        UserDefaults.standard.set(false, forKey: "isLoggedIn")
     }
     
     func fetchProfileImages(completion: @escaping (Result<[ProfileImage], Error>) -> Void) {
@@ -317,6 +361,7 @@ class APIService: ObservableObject {
             
             DispatchQueue.main.async {
                 if httpResponse.statusCode == 200 {
+                    UserDefaults.standard.set(imageURL, forKey: "selectedAvatarURL")
                     completion(.success(true))
                 } else {
                     completion(.failure(APIError.serverError(httpResponse.statusCode)))
@@ -982,22 +1027,12 @@ struct AuthenticationView: View {
         
         switch result {
         case .success(let response):
-            if let message = response.message {
-                print("Success: \(message)")
-            }
-            
-            if let token = response.token {
-                UserDefaults.standard.set(token, forKey: "authToken")
-            }
-            
-            if let user = response.user {
-                username = user.username
-                if let email = user.email {
-                    userEmail = email
-                }
-            }
-            
+            username = response.user.username
+            userEmail = response.user.email
             isLoggedIn = true
+            
+            print("Login successful for user: \(response.user.username)")
+            
             dismiss()
             
         case .failure(let error):
