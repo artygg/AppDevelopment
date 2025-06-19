@@ -6,65 +6,48 @@
 //
 
 import SwiftUI
-import MapKit
+import MapboxMaps
 import CoreLocation
 
 struct AdminMapView: View {
     @Binding var places: [DecodedPlace]
-    @Binding var region: MapCameraPosition
-    @State private var currentCenter =
-        CLLocationCoordinate2D(latitude: 52.78, longitude: 6.90)
-
-    let isAdmin: Bool
-
     @State private var isEditing = false
     @State private var showingAddSheet = false
     @State private var newPlaceName = ""
     @State private var newPlaceCoord: CLLocationCoordinate2D?
+    @State private var selectedPinCoord: CLLocationCoordinate2D? = nil
 
     @State private var isSaving = false
     @State private var saveError: String?
 
     @AppStorage("username") private var currentUser = "player1"
 
+    private var mapboxPlaces: [Place] {
+        places.map { dp in
+            Place(
+                name: dp.name,
+                coordinate: dp.clCoordinate,
+                placeIcon: dp.iconName,
+                isCaptured: dp.captured
+            )
+        }
+    }
+    @State private var userLocation: CLLocation? = nil
+
     var body: some View {
         ZStack {
-            Map(position: $region) {
-                ForEach(places) { place in
-                    Annotation(place.name, coordinate: place.clCoordinate) {
-                        CategoryIconView(
-                            categoryID: place.category_id,
-                            iconName:   place.iconName
-                        )
-                        .foregroundColor(place.iconColor(for: currentUser))
-                    }
-                }
-                UserAnnotation()
-            }
-            .onMapCameraChange(frequency: .onEnd) { context in
-                currentCenter = context.region.center
-            }
+            MapboxViewWrapper(
+                places: .constant(mapboxPlaces),
+                userLocation: .constant(userLocation),
+                onMapTap: isEditing ? { coord in
+                    selectedPinCoord = coord
+                    newPlaceCoord = coord
+                } : nil
+            )
             .ignoresSafeArea()
 
-            if isEditing {
-                Image(systemName: "mappin.circle")
-                    .font(.system(size: 44))
-                    .foregroundColor(.blue)
-                    .offset(y: -22)
-
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button("Add Place") {
-                            newPlaceCoord   = currentCenter
-                            showingAddSheet = true
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding()
-                        Spacer()
-                    }
-                }
+            if isEditing, let pinCoord = selectedPinCoord {
+                PinOverlayView(coordinate: pinCoord)
             }
 
             VStack {
@@ -85,11 +68,13 @@ struct AdminMapView: View {
                 onCancel: {
                     showingAddSheet = false
                     isEditing       = false
+                    selectedPinCoord = nil
                 },
                 onSave: { finalName, chosenCategoryID in
                     guard let coord = newPlaceCoord, !finalName.isEmpty else {
                         showingAddSheet = false
                         isEditing       = false
+                        selectedPinCoord = nil
                         return
                     }
 
@@ -125,9 +110,11 @@ struct AdminMapView: View {
                             places.append(decoded)
                             showingAddSheet = false
                             isEditing       = false
+                            selectedPinCoord = nil
 
                         case .failure(let err):
                             saveError = err.localizedDescription
+                            selectedPinCoord = nil
                         }
                     }
                 }
@@ -142,5 +129,19 @@ struct AdminMapView: View {
                 }
             }
         }
+    }
+}
+
+struct PinOverlayView: View {
+    let coordinate: CLLocationCoordinate2D
+    @Environment(\.colorScheme) var colorScheme
+    var body: some View {
+        GeometryReader { geo in
+            Image(systemName: "mappin.circle.fill")
+                .font(.system(size: 44))
+                .foregroundColor(colorScheme == .dark ? .yellow : .blue)
+                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+        .allowsHitTesting(false)
     }
 }

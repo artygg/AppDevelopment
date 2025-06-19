@@ -12,6 +12,7 @@ struct ContentView: View {
 
     @State private var isAdmin = false
     @State private var showCamera = false
+    @State private var showProfile = false
     @State private var capturedImage: UIImage?
     @State private var showImageSheet = false
     @State private var retrievedImage: UIImage?
@@ -39,6 +40,21 @@ struct ContentView: View {
     @State private var bannerPlace: DecodedPlace?
     @State private var bannerTask: Task<Void, Never>?
 
+    private var mapboxPlaces: [Place] {
+        let mappedPlaces = decodedVM.places.map { dp in
+            Place(
+                name: dp.name,
+                coordinate: dp.clCoordinate,
+                placeIcon: dp.iconName,
+                isCaptured: dp.captured
+            )
+        }
+        print("MapboxPlaces computed: \(mappedPlaces.count) places")
+        return mappedPlaces
+    }
+    
+    @State private var userLocation: CLLocation? = nil
+
     private var myCaptured: [DecodedPlace] { decodedVM.places.filter { $0.captured && $0.user_captured == currentUser } }
     private var capturedCount: Int { myCaptured.count }
     private var capturedNames: [String] { myCaptured.map(\.name) }
@@ -57,7 +73,8 @@ struct ContentView: View {
             )
             SideButtonsView(
                 fetchImage: { fetchImage(for: 1) },
-                openCamera: { showCamera = true }
+                openCamera: { showCamera = true },
+                openProfile: { showProfile = true }
             )
             bannerView
         }
@@ -68,42 +85,31 @@ struct ContentView: View {
                 Image(uiImage: img).resizable().scaledToFit().padding()
             } else { Text("Failed to load image.") }
         }
+        .sheet(isPresented: $showProfile) {
+            ProfileView()
+        }
         .sheet(isPresented: $showOwnerQuiz) {
             if let q = ownerQuiz {
                 OwnerQuizView(mineCount: $mineCount, quiz: q) { showOwnerQuiz = false }
             }
         }
         .sheet(isPresented: $showLeaderboard) { LeaderboardView() }
-        .onReceive(locationManager.$lastLocation.compactMap { $0 }, perform: handleLocation)
+        .onReceive(locationManager.$lastLocation.compactMap { $0 }) { loc in
+            userLocation = loc
+            handleLocation(loc)
+        }
         .task { await startup() }
         .onDisappear { webSocketManager.disconnect() }
     }
-}
-
-private extension ContentView {
 
     var mapLayer: some View {
-        Group {
-            if isAdmin {
-                AdminMapView(places: $decodedVM.places, region: $region, isAdmin: true)
-            } else {
-                Map(position: $region) {
-                    ForEach(decodedVM.places) { place in
-                        Annotation(place.name, coordinate: place.clCoordinate) {
-                            VStack(spacing: 0) {
-                                CategoryIconView(categoryID: place.category_id, iconName: place.iconName)
-                                    .foregroundColor(place.iconColor(for: currentUser))
-                                    .onTapGesture { annotationTapped(place) }
-                                Text(place.name)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                            }
-                        }
-                    }
-                    UserAnnotation()
-                }
-                .ignoresSafeArea()
-            }
+        MapboxViewWrapper(
+            places: .constant(mapboxPlaces),
+            userLocation: $userLocation
+        )
+        .ignoresSafeArea()
+        .onAppear {
+            print("MapLayer appeared with \(mapboxPlaces.count) places")
         }
     }
 
@@ -176,7 +182,6 @@ private extension ContentView {
         showOwnerQuiz = true
     }
 
-
     var bannerView: some View {
         Group {
             if let p = bannerPlace {
@@ -194,6 +199,13 @@ private extension ContentView {
             }
         }
         .animation(.easeInOut, value: bannerPlace != nil)
+    }
+
+    func fetchImage(for placeID: Int) {
+        ImageService.fetchImage(for: placeID) { img in
+            retrievedImage = img
+            showImageSheet = true
+        }
     }
 
     func showBanner(_ place: DecodedPlace) {
@@ -234,16 +246,34 @@ private extension ContentView {
         }
     }
 
-    func fetchImage(for placeID: Int) {
-        ImageService.fetchImage(for: placeID) { img in
-            retrievedImage = img
-            showImageSheet = true
-        }
-    }
-
     func uploadPhoto() {
         if let img = capturedImage, let data = img.jpegData(compressionQuality: 0.8) {
             ImageService.uploadImage(data)
         }
+    }
+
+    func quizFinished(_ passed: Bool) {
+        guard let target = placeToCapture else { return }
+        Task {
+            await decodedVM.sendCapture(placeID: target.id, passed: passed)
+            await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
+        }
+        if passed {
+            decodedVM.markCaptured(target.id)
+            mineCount += 1
+            showBanner(target)
+        } else {
+            skippedPlaces.insert(target.name)
+        }
+        loadingQuiz = false
+        showQuiz = false
+        quiz = nil
+    }
+}
+struct Content_Previews: PreviewProvider {
+    static var previews: some View {
+        
+            ContentView()
+                
     }
 }
