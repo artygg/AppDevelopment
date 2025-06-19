@@ -1,4 +1,3 @@
-//
 //  MineService.swift
 //  AppDevelopment
 //
@@ -10,18 +9,18 @@ import SwiftUI
 
 struct MineRequest: Encodable {
     let place_id: Int
-    let qid: String
+    let qid:      String
 }
 
 enum MineService {
-    static func plantMine(placeID: Int, qid: UUID) async {
+    static func plantMine(placeID: Int, qid: String) async {
         guard let url = URL(string: "http://localhost:8080/api/mine") else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = MineRequest(place_id: placeID, qid: qid.uuidString)
+        let body = MineRequest(place_id: placeID, qid: qid)
         req.httpBody = try? JSONEncoder().encode(body)
         _ = try? await URLSession.shared.data(for: req)
     }
-}
+} 
