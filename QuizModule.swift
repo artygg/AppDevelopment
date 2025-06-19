@@ -1,22 +1,15 @@
-//
-//  QuizModule.swift
-//  AppDevelopment
-//
-//  Created by M1stake Sequence on 2025-05-22.
-//
-
 import SwiftUI
 
+private let passCount = 1
 private let defaultTime = 15
-private let minedTime   = 5
 
 struct Quiz: Codable {
     let place_id: Int
-    let questions: [QuizQuestion]
+    var questions: [QuizQuestion]
 }
 
 struct QuizQuestion: Codable, Identifiable {
-    let id: UUID
+    let id: String
     let text: String
     let options: [String]
     let answer: Int
@@ -26,10 +19,10 @@ struct QuizQuestion: Codable, Identifiable {
 struct QuizView: View {
     let quiz: Quiz
     let place: DecodedPlace
-    var onDismiss: (_ captured: Bool) -> Void
-    let currentUser: String
+    var onFinish: (_ correct: Int, _ elapsed: Int) -> Void
 
     @State private var selected: Int? = nil
+    @State private var skipped = false
     @State private var questionIndex: Int = 0
     @State private var correctCount: Int = 0
     @State private var showResult: Bool = false
@@ -40,18 +33,16 @@ struct QuizView: View {
     @State private var startTime = DispatchTime.now()
     @State private var elapsedMs = 0
 
-    private let passCount = 5
+    // New camera states
+    @State private var showCamera = false
+    @State private var capturedImage: UIImage? = nil
 
     var body: some View {
         VStack(spacing: 0) {
             header
-
             Spacer(minLength: 0)
-
             if !showResult { questionCard }
-
             Spacer()
-
             footer
         }
         .background(Color(white: 0.95).ignoresSafeArea())
@@ -61,12 +52,7 @@ struct QuizView: View {
     private var header: some View {
         VStack(spacing: 8) {
             HStack {
-                Button { onDismiss(false) } label: {
-                    Image(systemName: "xmark")
-                        .font(.title)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal)
-                }
+                Button("Close") { onFinish(0, 0) }
                 Spacer()
             }
             Text(place.name)
@@ -124,11 +110,13 @@ struct QuizView: View {
                         .shadow(color: .black.opacity(0.06), radius: 2, x: 0, y: 2)
                 }
                 .padding(.horizontal, 20)
-                .disabled(selected != nil)
             }
         }
         .onAppear {
-            if questionIndex == 0 { startTime = .now() }
+            if questionIndex == 0 {
+                correctCount = 0
+                startTime = .now()
+            }
             startTimer(for: q)
         }
         .animation(.easeInOut, value: selected)
@@ -138,7 +126,24 @@ struct QuizView: View {
     private var footer: some View {
         VStack {
             Divider()
-            if showResult { resultView } else { nextButton }
+            if showResult {
+                resultView
+            } else {
+                HStack {
+                    Button("Skip") {
+                        skipped = true
+                        proceedAfterAnswer()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.gray)
+
+                    Spacer(minLength: 12)
+
+                    nextButton
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+            }
         }
         .background(Color.white)
         .cornerRadius(16, corners: [.topLeft, .topRight])
@@ -148,21 +153,13 @@ struct QuizView: View {
 
     private var nextButton: some View {
         Button {
-            guard let sel = selected else { return }
-            if sel == quiz.questions[questionIndex].answer { correctCount += 1 }
             proceedAfterAnswer()
         } label: {
-            Text(
-                questionIndex + 1 == quiz.questions.count
-                ? "Finish"
-                : (selected == nil ? "Select an answer" : "Next")
-            )
-            .frame(maxWidth: .infinity)
+            Text(questionIndex + 1 == quiz.questions.count ? "Finish" : "Next")
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .tint(.blue)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
         .disabled(selected == nil)
     }
 
@@ -182,19 +179,15 @@ struct QuizView: View {
                     .foregroundColor(.green)
 
                 Button("Done") {
-                    Task {
-                        let captured = await ResultService.send(
-                            FinishRequest(
-                                place_id:   quiz.place_id,
-                                user:       currentUser,
-                                correct:    correctCount,
-                                elapsed_ms: elapsedMs
-                            )
-                        )
-                        onDismiss(captured)
-                    }
+                    onFinish(correctCount, elapsedMs)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.blue)
+
+                Button("Take a Photo") {
+                    showCamera = true
+                }
+                .buttonStyle(.bordered)
                 .tint(.blue)
 
             } else {
@@ -202,10 +195,21 @@ struct QuizView: View {
                     .font(.title3)
                     .foregroundColor(.red)
 
-                Button("Close") { onDismiss(false) }
-                    .buttonStyle(.bordered)
-                    .tint(.gray)
+                Button("Close") {
+                    onFinish(correctCount, elapsedMs)
+                }
+                .buttonStyle(.bordered)
+                .tint(.gray)
             }
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraView(image: $capturedImage)
+                .onDisappear {
+                    if let image = capturedImage,
+                       let data = image.jpegData(compressionQuality: 0.8) {
+                        ImageService.uploadImage(data, placeID: place.id)
+                    }
+                }
         }
         .padding(.vertical, 16)
     }
@@ -214,7 +218,9 @@ struct QuizView: View {
         timer?.invalidate()
         secondsLeft = question.timeLimit ?? defaultTime
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if secondsLeft > 0 { secondsLeft -= 1 }
+            if secondsLeft > 0 {
+                secondsLeft -= 1
+            }
             if secondsLeft == 0 {
                 timer?.invalidate()
                 selected = -1
@@ -231,6 +237,15 @@ struct QuizView: View {
             showResult = true
             timer?.invalidate()
         }
+
+        if !skipped,
+           let choice = selected,
+           choice == quiz.questions[questionIndex].answer {
+            correctCount += 1
+        }
+
+        skipped = false
+        selected = nil
 
         if questionIndex + 1 < quiz.questions.count {
             questionIndex += 1

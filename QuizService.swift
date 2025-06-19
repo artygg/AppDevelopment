@@ -8,23 +8,12 @@
 import Foundation
 
 struct QuizService {
-    static func fetchQuiz(for placeName: String, maxAttempts: Int = 3) async -> Quiz? {
-        let urlString = "\(Config.apiURL)/quiz?place=\(placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        for attempt in 1...maxAttempts {
-            do {
-                guard let url = URL(string: urlString) else { return nil }
-                let (data, _) = try await URLSession.shared.data(from: url)
-                let quiz = try JSONDecoder().decode(Quiz.self, from: data)
-                if !quiz.questions.isEmpty && quiz.questions.allSatisfy({ !$0.text.isEmpty }) {
-                    return quiz
-                }
-            } catch {
-                print("Attempt \(attempt): Quiz fetch/decode failed, retrying...")
-            }
-            try? await Task.sleep(nanoseconds: 500_000_000)
-        }
-        print("Failed to get valid quiz after \(maxAttempts) attempts.")
-        return nil
+    static func fetchQuiz(placeID: Int) async -> Quiz? {
+        guard let url = URL(string: "\(Config.apiURL)/quiz?place_id=\(placeID)") else { return nil }
+        do {
+            let (d, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode(Quiz.self, from: d)
+        } catch { return nil }
     }
 
     static func handleQuizForPlace(
@@ -32,7 +21,7 @@ struct QuizService {
         setLoading: @escaping (Bool) -> Void,
         setQuiz: @escaping (Quiz?) -> Void
     ) async {
-        let loadedQuiz = await fetchQuiz(for: place.name)
+        let loadedQuiz = await QuizService.fetchQuiz(placeID: place.id)
         await MainActor.run {
             setLoading(false)
             setQuiz(loadedQuiz)

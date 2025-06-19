@@ -13,3 +13,4 @@ struct Config {
     static let webSocketURL = "ws://\(apiURLBaseString)/ws"
     static let apiURL = "http://\(apiURLBaseString)"
 }
+

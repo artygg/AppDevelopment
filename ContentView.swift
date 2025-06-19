@@ -10,7 +10,7 @@ struct ContentView: View {
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 0
 
-    @State private var isAdmin = true
+    @State private var isAdmin = false
     @State private var showCamera = false
     @State private var showProfile = false
     @State private var capturedImage: UIImage?
@@ -149,12 +149,37 @@ struct ContentView: View {
                     Spacer()
                 }
             } else if let q = quiz, let place = placeToCapture {
-                QuizView(quiz: q, place: place, onDismiss: quizFinished(_:), currentUser: currentUser)
+                QuizView(quiz: q, place: place) { correct, elapsed in
+                    Task { @MainActor in
+                        let (captured, newQuiz) =
+                          await decodedVM.finishAttempt(placeID: place.id,
+                                                        correct: correct,
+                                                        elapsed: elapsed)
+
+                        if captured {
+                            mineCount += 1
+                            showBanner(place)
+                            if let nq = newQuiz { openOwnerQuiz(nq) }
+                        } else {
+                            skippedPlaces.insert(place.name)
+                        }
+
+                        loadingQuiz = false
+                        showQuiz    = false
+                        quiz        = nil
+                    }
+                }
+                .id(q.place_id) 
             } else {
                 VStack { Spacer(); Text("No quiz."); Spacer() }
             }
         }
         .background(Color.white.opacity(0.98).ignoresSafeArea())
+    }
+    
+    private func openOwnerQuiz(_ quiz: Quiz) {
+        ownerQuiz     = quiz
+        showOwnerQuiz = true
     }
 
     var bannerView: some View {
@@ -213,11 +238,10 @@ struct ContentView: View {
     }
 
     func annotationTapped(_ place: DecodedPlace) {
-        guard place.captured, place.user_captured == currentUser else { return }
+        guard place.user_captured == currentUser else { return }
         Task {
-            if let q = await QuizService.fetchQuiz(for: place.name) {
-                ownerQuiz = q
-                showOwnerQuiz = true
+            if let q = await QuizService.fetchQuiz(placeID: place.id) {
+                openOwnerQuiz(q)
             }
         }
     }
