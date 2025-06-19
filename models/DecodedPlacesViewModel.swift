@@ -21,6 +21,18 @@ class DecodedPlacesViewModel: ObservableObject {
         let user:     String
         let passed:   Bool
     }
+    
+    private struct FinishReq: Codable {
+        let place_id:   Int
+        let user:       String
+        let correct:    Int
+        let elapsed_ms: Int
+    }
+    
+    private struct FinishResp: Codable {
+        let captured: Bool
+        let quiz:     Quiz?
+    }
 
     // MARK: – Fetch places
     func fetchPlaces(iconMapping: [String: String]) async {
@@ -64,22 +76,44 @@ class DecodedPlacesViewModel: ObservableObject {
             places[idx].user_captured = currentUser
         }
     }
+    
+    func finishAttempt(placeID: Int,
+                       correct: Int,
+                       elapsed: Int) async -> (Bool, Quiz?) {
 
-    // MARK: – Inform backend (success / fail)
-    func sendCapture(placeID: Int, passed: Bool) async {
-        guard let url = URL(string: "\(baseURL)/api/capture") else { return }
+        guard let url = URL(string: "\(baseURL)/api/finish") else { return (false,nil) }
 
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let payload = CaptureReq(
-            place_id: placeID,
-            user:     currentUser,
-            passed:   passed
-        )
-        req.httpBody = try? JSONEncoder().encode(payload)
+        struct Req: Codable {
+            let place_id:   Int
+            let user:       String
+            let correct:    Int
+            let elapsed_ms: Int
+        }
+        struct Resp: Codable {
+            let captured: Bool
+            let quiz:     Quiz?
+        }
 
-        _ = try? await URLSession.shared.data(for: req)
+        req.httpBody = try? JSONEncoder().encode(
+            Req(place_id: placeID, user: currentUser,
+                correct: correct, elapsed_ms: elapsed)
+        )
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            let r = try JSONDecoder().decode(Resp.self, from: data)
+
+            if r.captured {
+                markCaptured(placeID)
+            }
+            return (r.captured, r.quiz)
+        } catch {
+            print("finishAttempt:", error)
+            return (false, nil)
+        }
     }
 }
