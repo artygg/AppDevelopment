@@ -542,7 +542,7 @@ struct ProfileView: View {
                     
                     if !capturedPlaces.isEmpty {
                         Button("View All") {
-                            showAllPlaces = true 
+                            showAllPlaces = true
                         }
                         .font(.subheadline)
                         .foregroundColor(.blue)
@@ -975,11 +975,17 @@ struct AuthenticationView: View {
     
     private func toggleMode() {
         isSignUp.toggle()
+        
+        usernameField = ""
+        passwordField = ""
+        emailField = ""
+        confirmPasswordField = ""
+        
+        usernameError = ""
+        emailError = ""
+        passwordError = ""
+        confirmPasswordError = ""
         errorMessage = ""
-        if !isSignUp {
-            confirmPasswordField = ""
-            emailField = ""
-        }
     }
     
     private func submitForm() {
