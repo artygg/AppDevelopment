@@ -77,13 +77,14 @@ open ios/AppDevelopment.xcodeproj
 
 **PostgreSQL & Migrations**
 
+```bash
 # create user & db
 createuser -s postgres        # if not yet
 createdb -O postgres app_dev
 
 # run migrations
 make migrate
-
+```
 ---
 
 **Running the Backend**
@@ -96,12 +97,14 @@ make migrate
 
 **Running the iOS App**
 
+```bash
+
 1. Xcode 15+.
 
 2. Scheme AppDevelopment → Run.
 
 3. Ensure Info.plist has NSAppTransportSecurity / NSAllowsArbitraryLoads = YES (dev only) for local HTTP.
-
+```
 
 ---
 
