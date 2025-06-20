@@ -30,34 +30,48 @@ A full-stack Swift + Go demo project: players capture real-world POIs by answeri
 ---
 
 ## Quick Start
-
 ```bash
 # 1 ─ Clone
 git clone https://github.com/artygg/AppDevelopment.git
-cd AppDevelopment
+git clone git@github.com:artygg/AppDevelopmentAPI.git
+cd AppDevelopmentAPI
 
 # 2 ─ Backend env
-cp backend/.env.sample backend/.env
+cp .env.sample .env
 #                ↑ fill in OPENAI_API_KEY & PG creds
 
 # 3 ─ DB up
 docker compose up -d db       # → postgres:15 @ localhost:5432
 
 # 4 ─ Migrate
-cd backend
-make migrate                  # runs sqlc / goose migrations
+
+cat AppDev_backup.sql | docker exec -i postgres_db psql -U postgres -d AppDev
+# replace for another user if change env
 
 # 5 ─ Run server
-go run ./cmd/api              # listens at http://localhost:8080
+go run .              # listens at http://localhost:8080
 
 # 6 ─ iOS app
-open ios/AppDevelopment.xcodeproj
+#Go to Xcode and build app
 #   ▶⌘R on Simulator or device (iOS 17+)
 
 # 7 ─ Play!
 
 ```
 
+NOTE: by default SWIFT app is targeting localhost please go to "Config.swift" and change ip there
+replace it with this code to acces online hosting:
+
+
+```SWIFT
+import Foundation
+
+struct Config {
+    static let apiURLBaseString = "appdev.billetiq.net"
+    static let webSocketURL = "ws://\(apiURLBaseString)/ws"
+    static let apiURL = "https://\(apiURLBaseString)"
+}
+```
 ---
 
 **Environment Variables**
@@ -75,23 +89,12 @@ open ios/AppDevelopment.xcodeproj
 
 ---
 
-**PostgreSQL & Migrations**
-
-```bash
-# create user & db
-createuser -s postgres        # if not yet
-createdb -O postgres app_dev
-
-# run migrations
-make migrate
-```
----
 
 **Running the Backend**
 
 | command            | action                              |
 | ------------------ | ----------------------------------- |
-| `go run ./cmd/api` | start HTTP + WS server on **:8080** |
+| `go run .` | start HTTP + WS server on **:8080** |
 
 ---
 
