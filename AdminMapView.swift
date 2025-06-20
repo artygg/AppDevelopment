@@ -9,6 +9,7 @@ struct AdminMapView: View {
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var mapCenter: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 52.78, longitude: 6.90)
+    @State private var shouldFocusOnUser = true
 
     @AppStorage("username") private var currentUser = "player1"
 
@@ -31,7 +32,8 @@ struct AdminMapView: View {
                 userLocation: .constant(userLocation),
                 onCameraChange: { newCenter in
                     mapCenter = newCenter
-                }
+                },
+                shouldFocusOnUser: $shouldFocusOnUser
             )
             .ignoresSafeArea()
 
