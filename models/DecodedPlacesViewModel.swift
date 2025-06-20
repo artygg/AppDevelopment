@@ -64,6 +64,9 @@ class DecodedPlacesViewModel: ObservableObject {
                     iconMapping["\(decoded[i].category_id)"] ?? "mappin.circle.fill"
             }
             places = decoded
+            for (index, place) in decoded.enumerated() {
+                print("Place \(index + 1): Captured → \(place.captured ? "Yes" : "No")")
+            }
         } catch {
             print("fetchPlaces:", error)
         }

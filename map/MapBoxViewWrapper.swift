@@ -272,6 +272,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 var annotation = PointAnnotation(coordinate: place.coordinate)
                 annotation.iconImage = themedIconName
                 annotation.textField = place.name
+
                 
                 annotation.iconSize = 1.0
                 
@@ -279,8 +280,18 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 annotation.textOffset = [0, 1.5]
                 
                 annotation.textSize = 12
-                annotation.textColor = StyleColor(colorScheme == .dark ? .white : .black)
-                annotation.textHaloColor = StyleColor(colorScheme == .dark ? .black : .white)
+                let colorIcon: UIColor
+                if place.isCaptured {
+                    colorIcon = .red
+                } else {
+                    colorIcon = colorScheme == .dark ? .white : .black
+                }
+
+                
+                annotation.textColor = StyleColor(colorScheme == .dark ? .black : .white)
+                annotation.textHaloColor = StyleColor(colorIcon)
+
+
                 annotation.textHaloWidth = 1.0
                 
                 print("[\(index)] \(place.name) -> \(themedIconName) at \(place.coordinate)")
