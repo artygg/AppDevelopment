@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showImageSheet = false
     @State private var retrievedImage: UIImage?
     @State private var showLeaderboard = false
+    @State private var shouldFocusOnUser = true
 
     @State private var region = MapCameraPosition.region(
         MKCoordinateRegion(
@@ -181,7 +182,8 @@ struct ContentView: View {
         MapboxViewWrapper(
             places: .constant(mapboxPlaces),
             userLocation: $userLocation,
-            currentUser: currentUser
+            currentUser: currentUser,
+            shouldFocusOnUser: $shouldFocusOnUser
         )
         .ignoresSafeArea()
         .onAppear {

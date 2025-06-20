@@ -18,6 +18,9 @@ struct MapboxViewWrapper: UIViewRepresentable {
     var onMapTap: ((CLLocationCoordinate2D) -> Void)? = nil
     var onCameraChange: ((CLLocationCoordinate2D) -> Void)? = nil
     
+    @Binding var shouldFocusOnUser: Bool
+    @State private var hasInitiallyFocused = false
+    
     func makeUIView(context: Context) -> MapView {
         print("Initializing MapView...")
         
@@ -108,6 +111,18 @@ struct MapboxViewWrapper: UIViewRepresentable {
         context.coordinator.places = places
         context.coordinator.userLocation = userLocation
         
+        if !hasInitiallyFocused && userLocation != nil && isStyleLoaded {
+            hasInitiallyFocused = true
+            context.coordinator.focusOnUser()
+        }
+        
+        if shouldFocusOnUser {
+            context.coordinator.focusOnUser()
+            DispatchQueue.main.async {
+                shouldFocusOnUser = false
+            }
+        }
+        
         if context.coordinator.currentColorScheme != colorScheme {
             context.coordinator.currentColorScheme = colorScheme
             context.coordinator.registeredIcons.removeAll()
@@ -150,10 +165,42 @@ struct MapboxViewWrapper: UIViewRepresentable {
             self.parent = parent
         }
         
+        // MARK: - Focus on User Implementation
+        func focusOnUser() {
+            guard let mapView = mapView else {
+                print("Cannot focus on user: MapView is nil")
+                return
+            }
+            
+            guard let userLocation = userLocation else {
+                print("Cannot focus on user: User location is nil")
+                return
+            }
+            
+            print("Focusing on user location: \(userLocation.coordinate)")
+            
+            let cameraOptions = CameraOptions(
+                center: userLocation.coordinate,
+                zoom: 16,
+                bearing: mapView.cameraState.bearing,
+                pitch: mapView.cameraState.pitch
+            )
+            
+            mapView.camera.ease(
+                to: cameraOptions,
+                duration: 1.2,
+                curve: .easeInOut
+            ) { [weak self] _ in
+                print("Focus on user animation completed")
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+            }
+        }
+        
         func registerIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
             
-            print("🔧 Registering icons for \(colorScheme == .dark ? "dark" : "light") theme...")
+            print("Registering icons for \(colorScheme == .dark ? "dark" : "light") theme...")
             
             let allIcons = Set(places.map { $0.placeIcon })
             
