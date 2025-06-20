@@ -290,8 +290,8 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 }
 
                 
-                annotation.textColor = StyleColor(colorScheme == .dark ? .black : .white)
-                annotation.textHaloColor = StyleColor(colorIcon)
+                annotation.textColor = StyleColor(colorIcon)
+
 
 
                 annotation.textHaloWidth = 1.0
