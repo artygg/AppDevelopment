@@ -392,16 +392,29 @@ enum APIError: LocalizedError {
 }
 
 struct ProfileView: View {
+    @ObservedObject var placesViewModel: DecodedPlacesViewModel
     @AppStorage("isLoggedIn") var isLoggedIn = false
     @AppStorage("username") var username = ""
     @AppStorage("userEmail") var userEmail = ""
     @AppStorage("selectedAvatarURL") var selectedAvatarURL = ""
     
-    @State private var capturedPlaces: [Place] = []
-    @State private var isLoading = false
     @State private var showSettings = false
     @State private var showingAuth = false
     @State private var showAllPlaces = false
+
+    private var capturedPlaces: [Place] {
+        placesViewModel.places
+            .filter { $0.captured && $0.user_captured == username }
+            .map {
+                Place(
+                    name: $0.name,
+                    coordinate: $0.clCoordinate,
+                    placeIcon: $0.iconName,
+                    isCaptured: $0.captured,
+                    user_captured: $0.user_captured
+                )
+            }
+    }
     
     var body: some View {
         NavigationStack {
@@ -425,11 +438,6 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showAllPlaces) {
                 AllCapturedPlacesView(capturedPlaces: capturedPlaces)
-            }
-            .onAppear {
-                if isLoggedIn {
-                    fetchCapturedPlaces()
-                }
             }
         }
     }
@@ -524,16 +532,7 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal)
                 
-                if isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading your places...")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(height: 120)
-                } else if capturedPlaces.isEmpty {
+                if capturedPlaces.isEmpty {
                     EmptyStateView()
                 } else {
                     LazyVStack(spacing: 12) {
@@ -546,183 +545,67 @@ struct ProfileView: View {
             }
             
             Button(action: logout) {
-                HStack {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                    Text("Sign Out")
-                }
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.red)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 24)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(10)
+                Text("Logout")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .foregroundColor(.red)
+                    .cornerRadius(12)
             }
-            .padding(.top, 20)
-            .padding(.bottom, 40)
+            .padding(.horizontal)
         }
+        .padding(.bottom, 20)
     }
     
     private var authContent: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        VStack(spacing: 20) {
+            Image(systemName: "person.crop.circle.badge.xmark")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
             
-            VStack(spacing: 20) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.1), .purple.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 120, height: 120)
-                    
-                    Image(systemName: "person.crop.circle.badge.plus")
-                        .font(.system(size: 50))
-                        .foregroundColor(.blue)
-                }
+            VStack(spacing: 8) {
+                Text("Not Logged In")
+                    .font(.title2)
+                    .fontWeight(.bold)
                 
-                VStack(spacing: 8) {
-                    Text("Welcome to Explorer")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-                    
-                    Text("Sign in to start capturing places and tracking your adventures.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
+                Text("Log in to view your profile and track your progress.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
             
-            VStack(spacing: 16) {
-                Button(action: { showingAuth = true }) {
-                    HStack {
-                        Image(systemName: "person.fill")
-                        Text("Sign In")
-                    }
-                    .font(.headline)
-                    .fontWeight(.medium)
+            Button {
+                showingAuth = true
+            } label: {
+                Text("Log In or Sign Up")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
                     .cornerRadius(12)
-                }
-                
-                Button(action: { showingAuth = true }) {
-                    HStack {
-                        Image(systemName: "person.badge.plus")
-                        Text("Create Account")
-                    }
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(12)
-                }
             }
-            .padding(.horizontal, 32)
-            
-            Spacer()
         }
-        .padding(.vertical)
+        .padding(32)
     }
     
-    // MARK: - Helper Functions
-    
-    func fetchCapturedPlaces() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/captured_places") else {
-            print("Invalid URL")
-            return
-        }
-        
-        isLoading = true
-        
-        var request = URLRequest(url: url)
-        if let authToken = UserDefaults.standard.string(forKey: "authToken") {
-            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-        }
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                
-                if let error = error {
-                    print("Network error:", error)
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("Invalid response")
-                    return
-                }
-                
-                guard 200...299 ~= httpResponse.statusCode else {
-                    print("HTTP Error: \(httpResponse.statusCode)")
-                    return
-                }
-                
-                guard let data = data else {
-                    print("No data received")
-                    return
-                }
-                
-                do {
-                    let decoded = try JSONDecoder().decode([CapturedPlaceResponse].self, from: data)
-                    print("Decoded \(decoded.count) places")
-                    
-                    let places: [Place] = decoded.map { item in
-                        Place(
-                            name: item.name,
-                            coordinate: CLLocationCoordinate2D(latitude: item.latitude, longitude: item.longitude),
-                            placeIcon: "mappin.circle",
-                            isCaptured: item.captured
-                        )
-                    }
-                    
-                    self.capturedPlaces = places
-                    print("Updated capturedPlaces with \(places.count) items")
-                    
-                } catch {
-                    print("Decoding error:", error)
-                    if let jsonString = String(data: data, encoding: .utf8) {
-                        print("Raw JSON response:", jsonString)
-                    }
-                }
-            }
-        }.resume()
-    }
-    
-    func logout() {
+    private func logout() {
         APIService.shared.logout { result in
             switch result {
             case .success:
-                clearUserData()
+                clearLoginData()
             case .failure(let error):
-                print("Logout error: \(error.localizedDescription)")
-                clearUserData()
+                print("Logout failed: \(error.localizedDescription)")
             }
         }
     }
     
-    private func clearUserData() {
+    private func clearLoginData() {
         isLoggedIn = false
         username = ""
         userEmail = ""
         selectedAvatarURL = ""
-        capturedPlaces = []
         UserDefaults.standard.removeObject(forKey: "authToken")
     }
 }
@@ -1392,6 +1275,6 @@ struct NotificationSettingsView: View {
 // MARK: - Preview
 struct ProfileView_Previews: PreviewProvider {
     static var previews: some View {
-        ProfileView()
+        ProfileView(placesViewModel: DecodedPlacesViewModel())
     }
 }
