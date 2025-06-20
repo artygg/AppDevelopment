@@ -10,7 +10,7 @@ struct ContentView: View {
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 0
 
-    @State private var isAdmin = false
+    @State private var isAdmin = true
     @State private var showCamera = false
     @State private var showProfile = false
     @State private var capturedImage: UIImage?
@@ -61,9 +61,56 @@ struct ContentView: View {
     private var totalCount: Int { decodedVM.places.count }
 
     var body: some View {
+        Group {
+            if isAdmin {
+                adminView
+            } else {
+                gameView
+            }
+        }
+        .onReceive(locationManager.$lastLocation.compactMap { $0 }) { loc in
+            userLocation = loc
+            if !isAdmin {
+                handleLocation(loc)
+            }
+        }
+        .task { await startup() }
+        .onDisappear { webSocketManager.disconnect() }
+    }
+    
+    // MARK: - Admin View
+    var adminView: some View {
+        VStack {
+            HStack {
+                Text("Admin Mode")
+                    .font(.headline)
+                    .padding()
+                
+                Spacer()
+                
+                Button("Switch to Game") {
+                    isAdmin = false
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+                .padding()
+            }
+            
+            AdminMapView(places: $decodedVM.places)
+        }
+    }
+    
+    // MARK: - Game View
+    var gameView: some View {
         ZStack(alignment: .top) {
             mapLayer
-            if let p = placeToCapture, showCapturePopup { capturePopup(for: p) }
+            
+            if let p = placeToCapture, showCapturePopup {
+                capturePopup(for: p)
+            }
+            
             GameOverlayView(
                 capturedCount: capturedCount,
                 totalCount:    totalCount,
@@ -71,35 +118,59 @@ struct ContentView: View {
                 mineCount:     mineCount,
                 openBoard:     { showLeaderboard = true }
             )
+            
             SideButtonsView(
                 fetchImage: { fetchImage(for: 1) },
                 openCamera: { showCamera = true },
                 openProfile: { showProfile = true }
             )
+            
             bannerView
+            
+            // Admin toggle button (you can remove this if you don't want easy switching)
+            VStack {
+                HStack {
+                    Button("Admin") {
+                        isAdmin = true
+                    }
+                    .padding(8)
+                    .background(Color.red.opacity(0.8))
+                    .foregroundColor(.white)
+                    .cornerRadius(6)
+                    .font(.caption)
+                    
+                    Spacer()
+                }
+                .padding(.top, 50)
+                .padding(.leading, 20)
+                
+                Spacer()
+            }
         }
         .fullScreenCover(isPresented: $showQuiz) { quizCover }
-        .sheet(isPresented: $showCamera, onDismiss: uploadPhoto) { CameraView(image: $capturedImage) }
+        .sheet(isPresented: $showCamera, onDismiss: uploadPhoto) {
+            CameraView(image: $capturedImage)
+        }
         .sheet(isPresented: $showImageSheet) {
             if let img = retrievedImage {
                 Image(uiImage: img).resizable().scaledToFit().padding()
-            } else { Text("Failed to load image.") }
+            } else {
+                Text("Failed to load image.")
+            }
         }
         .sheet(isPresented: $showProfile) {
             ProfileView()
         }
         .sheet(isPresented: $showOwnerQuiz) {
             if let q = ownerQuiz {
-                OwnerQuizView(mineCount: $mineCount, quiz: q) { showOwnerQuiz = false }
+                OwnerQuizView(mineCount: $mineCount, quiz: q) {
+                    showOwnerQuiz = false
+                }
             }
         }
-        .sheet(isPresented: $showLeaderboard) { LeaderboardView() }
-        .onReceive(locationManager.$lastLocation.compactMap { $0 }) { loc in
-            userLocation = loc
-            handleLocation(loc)
+        .sheet(isPresented: $showLeaderboard) {
+            LeaderboardView()
         }
-        .task { await startup() }
-        .onDisappear { webSocketManager.disconnect() }
     }
 
     var mapLayer: some View {
@@ -271,10 +342,9 @@ struct ContentView: View {
         quiz = nil
     }
 }
+
 struct Content_Previews: PreviewProvider {
     static var previews: some View {
-        
-            ContentView()
-                
+        ContentView()
     }
 }
