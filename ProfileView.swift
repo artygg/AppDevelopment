@@ -502,20 +502,6 @@ struct ProfileView: View {
                     icon: "mappin.circle.fill",
                     color: .green
                 )
-                
-                StatCard(
-                    title: "This Month",
-                    value: "12",
-                    icon: "calendar",
-                    color: .orange
-                )
-                
-                StatCard(
-                    title: "Total Distance",
-                    value: "2.4km",
-                    icon: "figure.walk",
-                    color: .purple
-                )
             }
             .padding(.horizontal)
             
