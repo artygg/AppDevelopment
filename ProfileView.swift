@@ -131,7 +131,6 @@ class APIService: ObservableObject {
                 if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
                     do {
                         let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-                        // Save user data including profile image
                         self.saveUserData(from: authResponse)
                         completion(.success(authResponse))
                     } catch {
@@ -397,10 +396,15 @@ struct ProfileView: View {
     @AppStorage("username") var username = ""
     @AppStorage("userEmail") var userEmail = ""
     @AppStorage("selectedAvatarURL") var selectedAvatarURL = ""
-    
+    @AppStorage("mineCount") private var mineCount: Int = 0
+
     @State private var showSettings = false
     @State private var showingAuth = false
     @State private var showAllPlaces = false
+    @State private var showOwnerQuiz = false
+    @State private var loadingOwnerQuiz = false
+    @State private var ownerQuiz: Quiz? = nil
+    @State private var selectedPlace: Place? = nil
 
     private var capturedPlaces: [Place] {
         placesViewModel.places
@@ -439,7 +443,27 @@ struct ProfileView: View {
             .sheet(isPresented: $showAllPlaces) {
                 AllCapturedPlacesView(capturedPlaces: capturedPlaces)
             }
+            .sheet(isPresented: $showOwnerQuiz) {
+                if let quiz = ownerQuiz {
+                    OwnerQuizView(mineCount: $mineCount, quiz: quiz) {
+                        showOwnerQuiz = false
+                    }
+                }
+            }
         }
+        .overlay(
+            Group {
+                if loadingOwnerQuiz {
+                    ZStack {
+                        Color.black.opacity(0.2).ignoresSafeArea()
+                        ProgressView("Loading Quiz...")
+                            .padding(24)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(16)
+                    }
+                }
+            }
+        )
     }
     
     private var profileContent: some View {
@@ -538,21 +562,45 @@ struct ProfileView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(capturedPlaces.prefix(5)) { place in
                             PlaceCard(place: place)
+                                .onTapGesture {
+                                    selectedPlace = place
+                                    loadingOwnerQuiz = true
+                                    Task {
+                                        if let decoded = placesViewModel.places.first(where: { $0.name == place.name && $0.captured && $0.user_captured == username }) {
+                                            let quiz = await QuizService.fetchQuiz(placeID: decoded.id)
+                                            await MainActor.run {
+                                                self.ownerQuiz = quiz
+                                                self.loadingOwnerQuiz = false
+                                                self.showOwnerQuiz = quiz != nil
+                                            }
+                                        } else {
+                                            await MainActor.run {
+                                                self.loadingOwnerQuiz = false
+                                            }
+                                        }
+                                    }
+                                }
                         }
                     }
                     .padding(.horizontal)
                 }
             }
-            
-            Button(action: logout) {
-                Text("Logout")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red.opacity(0.1))
-                    .foregroundColor(.red)
-                    .cornerRadius(12)
+                    
+            Button(action: {
+                logout()
+            }) {
+                HStack {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Text("Logout")
+                }
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .foregroundColor(.red)
+                .cornerRadius(12)
             }
+            .buttonStyle(PlainButtonStyle())
             .padding(.horizontal)
         }
         .padding(.bottom, 20)
@@ -594,12 +642,18 @@ struct ProfileView: View {
         APIService.shared.logout { result in
             switch result {
             case .success:
-                clearLoginData()
+                DispatchQueue.main.async {
+                    self.clearLoginData()
+                }
             case .failure(let error):
                 print("Logout failed: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.clearLoginData()
+                }
             }
         }
     }
+
     
     private func clearLoginData() {
         isLoggedIn = false

@@ -8,7 +8,7 @@ struct ContentView: View {
     @StateObject private var iconLoader       = CategoryIconLoader()
     @StateObject private var webSocketManager = WebSocketManager()
     @AppStorage("username")  private var currentUser: String = "player1"
-    @AppStorage("mineCount") private var mineCount: Int = 0
+    @AppStorage("mineCount") private var mineCount: Int = 10
 
     @State private var isAdmin = false
     @State private var showCamera = false
@@ -132,7 +132,6 @@ struct ContentView: View {
             
             bannerView
             
-            // Admin toggle button (you can remove this if you don't want easy switching)
             VStack {
                 HStack {
                     Button("Admin") {
@@ -311,6 +310,8 @@ struct ContentView: View {
     }
 
     func startup() async {
+        mineCount = 10
+
         await iconLoader.fetchIcons()
         decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
         webSocketManager.connect()
