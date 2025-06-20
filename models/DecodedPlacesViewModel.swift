@@ -14,7 +14,7 @@ class DecodedPlacesViewModel: ObservableObject {
 
     @AppStorage("username") private var currentUser: String = "player1"
     private let baseURL = Config.apiURL
-    private var timer: Timer?
+    private var fetchingTask: Task<Void, Never>?
     private var iconMapping: [String: String] = [:]
 
     // MARK: – DTO
@@ -39,26 +39,28 @@ class DecodedPlacesViewModel: ObservableObject {
     func startPeriodicFetching(iconMapping: [String: String]) {
         self.iconMapping = iconMapping
         
-        Task {
-            await fetchPlaces()
-        }
+        fetchingTask?.cancel()
 
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task {
-                await self?.fetchPlaces()
+        fetchingTask = Task {
+            while true {
+                await fetchPlaces()
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    // Task was cancelled.
+                    return
+                }
             }
         }
     }
 
     func stopPeriodicFetching() {
-        timer?.invalidate()
-        timer = nil
+        fetchingTask?.cancel()
     }
-
-    deinit {
-        stopPeriodicFetching()
-    }
+//
+//    deinit {
+//        stopPeriodicFetching()
+//    }
 
     // MARK: – Fetch places
     func fetchPlaces() async {
