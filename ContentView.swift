@@ -169,7 +169,8 @@ struct ContentView: View {
                         quiz        = nil
                     }
                 }
-                .id(q.place_id) 
+                .id(q.place_id)
+                .environmentObject(decodedVM)
             } else {
                 VStack { Spacer(); Text("No quiz."); Spacer() }
             }

@@ -37,6 +37,8 @@ struct QuizView: View {
     @State private var showCamera = false
     @State private var capturedImage: UIImage? = nil
 
+    @EnvironmentObject var decodedVM: DecodedPlacesViewModel
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -179,7 +181,10 @@ struct QuizView: View {
                     .foregroundColor(.green)
 
                 Button("Done") {
-                    onFinish(correctCount, elapsedMs)
+                    Task {
+                        await decodedVM.sendCapture(placeID: place.id, passed: true)
+                        onFinish(correctCount, elapsedMs)
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)

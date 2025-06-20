@@ -116,4 +116,21 @@ class DecodedPlacesViewModel: ObservableObject {
             return (false, nil)
         }
     }
+    
+    func sendCapture(placeID: Int, passed: Bool) async {
+        guard let url = URL(string: "\(baseURL)/api/capture") else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = CaptureReq(
+            place_id: placeID,
+            user:     currentUser,
+            passed:   passed
+        )
+        req.httpBody = try? JSONEncoder().encode(payload)
+
+        _ = try? await URLSession.shared.data(for: req)
+    }
 }

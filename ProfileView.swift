@@ -417,18 +417,6 @@ struct ProfileView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                if isLoggedIn {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .foregroundColor(.primary)
-                        }
-                    }
-                }
-            }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
