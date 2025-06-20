@@ -131,7 +131,6 @@ class APIService: ObservableObject {
                 if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
                     do {
                         let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-                        // Save user data including profile image
                         self.saveUserData(from: authResponse)
                         completion(.success(authResponse))
                     } catch {
@@ -586,16 +585,22 @@ struct ProfileView: View {
                     .padding(.horizontal)
                 }
             }
-            
-            Button(action: logout) {
-                Text("Logout")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red.opacity(0.1))
-                    .foregroundColor(.red)
-                    .cornerRadius(12)
+                    
+            Button(action: {
+                logout()
+            }) {
+                HStack {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Text("Logout")
+                }
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .foregroundColor(.red)
+                .cornerRadius(12)
             }
+            .buttonStyle(PlainButtonStyle())
             .padding(.horizontal)
         }
         .padding(.bottom, 20)
@@ -637,12 +642,18 @@ struct ProfileView: View {
         APIService.shared.logout { result in
             switch result {
             case .success:
-                clearLoginData()
+                DispatchQueue.main.async {
+                    self.clearLoginData()
+                }
             case .failure(let error):
                 print("Logout failed: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.clearLoginData()
+                }
             }
         }
     }
+
     
     private func clearLoginData() {
         isLoggedIn = false
