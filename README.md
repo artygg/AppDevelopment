@@ -84,7 +84,7 @@ make migrate
 
 ---
 
-**Running the Backend**
+##Running the Backend
 
 | command            | action                              |
 | ------------------ | ----------------------------------- |
@@ -92,7 +92,7 @@ make migrate
 
 ---
 
-**Running the iOS App**
+##Running the iOS App
 
 1. Xcode 15+.
 
@@ -103,7 +103,7 @@ make migrate
 
 ---
 
-**Troubleshooting**
+##Troubleshooting
 
 | symptom                          | fix                                                               |
 | -------------------------------- | ----------------------------------------------------------------- |
