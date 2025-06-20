@@ -56,6 +56,8 @@ open ios/AppDevelopment.xcodeproj
 
 # 7 ─ Play!
 
+```
+
 ---
 
 **Environment Variables**
@@ -84,7 +86,7 @@ make migrate
 
 ---
 
-##Running the Backend
+**Running the Backend**
 
 | command            | action                              |
 | ------------------ | ----------------------------------- |
@@ -92,7 +94,7 @@ make migrate
 
 ---
 
-##Running the iOS App
+**Running the iOS App**
 
 1. Xcode 15+.
 
@@ -102,14 +104,6 @@ make migrate
 
 
 ---
-
-##Troubleshooting
-
-| symptom                          | fix                                                               |
-| -------------------------------- | ----------------------------------------------------------------- |
-| **“connection refused”**         | backend not running → `go run ./cmd/api`                          |
-| **openai 403**                   | wrong/empty `OPENAI_API_KEY`                                      |
-
 
 
 
