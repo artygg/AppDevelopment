@@ -10,7 +10,7 @@ struct ContentView: View {
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 0
 
-    @State private var isAdmin = true
+    @State private var isAdmin = false
     @State private var showCamera = false
     @State private var showProfile = false
     @State private var capturedImage: UIImage?
