@@ -30,6 +30,7 @@ struct AdminMapView: View {
             MapboxViewWrapper(
                 places: .constant(mapboxPlaces),
                 userLocation: .constant(userLocation),
+                currentUser: currentUser,
                 onCameraChange: { newCenter in
                     mapCenter = newCenter
                 },

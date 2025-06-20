@@ -9,8 +9,8 @@
 import Foundation
 
 struct Config {
-    static let apiURLBaseString = "appdev.billetiq.net"
+    static let apiURLBaseString = "192.168.1.57:8080"
     static let webSocketURL = "ws://\(apiURLBaseString)/ws"
-    static let apiURL = "https://\(apiURLBaseString)"
+    static let apiURL = "http://\(apiURLBaseString)"
 }
 

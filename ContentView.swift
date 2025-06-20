@@ -47,7 +47,8 @@ struct ContentView: View {
                 name: dp.name,
                 coordinate: dp.clCoordinate,
                 placeIcon: dp.iconName,
-                isCaptured: dp.captured
+                isCaptured: dp.captured,
+                user_captured: dp.user_captured
             )
         }
         print("MapboxPlaces computed: \(mappedPlaces.count) places")
@@ -76,7 +77,10 @@ struct ContentView: View {
             }
         }
         .task { await startup() }
-        .onDisappear { webSocketManager.disconnect() }
+        .onDisappear {
+            webSocketManager.disconnect()
+            decodedVM.stopPeriodicFetching()
+        }
     }
     
     // MARK: - Admin View
@@ -178,6 +182,7 @@ struct ContentView: View {
         MapboxViewWrapper(
             places: .constant(mapboxPlaces),
             userLocation: $userLocation,
+            currentUser: currentUser,
             shouldFocusOnUser: $shouldFocusOnUser
         )
         .ignoresSafeArea()
@@ -296,7 +301,7 @@ struct ContentView: View {
         if let near = decodedVM.places.first(where: { p in
             let d = loc.distance(from: .init(latitude: p.latitude, longitude: p.longitude))
             let cd = p.cooldown_until != nil && p.cooldown_until! > Date()
-            return d < captureRadius && !skippedPlaces.contains(p.name) && !p.captured && !cd
+            return d < captureRadius && !skippedPlaces.contains(p.name) && p.user_captured != currentUser && !cd
         }) {
             placeToCapture = near
             showCapturePopup = true
@@ -307,7 +312,7 @@ struct ContentView: View {
 
     func startup() async {
         await iconLoader.fetchIcons()
-        await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
+        decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
         webSocketManager.connect()
     }
 
@@ -330,7 +335,7 @@ struct ContentView: View {
         guard let target = placeToCapture else { return }
         Task {
             await decodedVM.sendCapture(placeID: target.id, passed: passed)
-            await decodedVM.fetchPlaces(iconMapping: iconLoader.mapping)
+            await decodedVM.fetchPlaces()
         }
         if passed {
             decodedVM.markCaptured(target.id)

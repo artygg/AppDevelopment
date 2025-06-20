@@ -13,4 +13,5 @@ struct Place: Identifiable {
     let coordinate: CLLocationCoordinate2D
     let placeIcon: String
     var isCaptured: Bool = false
+    var user_captured: String?
 }
