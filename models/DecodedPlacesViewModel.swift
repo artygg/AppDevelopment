@@ -14,6 +14,8 @@ class DecodedPlacesViewModel: ObservableObject {
 
     @AppStorage("username") private var currentUser: String = "player1"
     private let baseURL = Config.apiURL
+    private var timer: Timer?
+    private var iconMapping: [String: String] = [:]
 
     // MARK: – DTO
     private struct CaptureReq: Codable {
@@ -34,8 +36,32 @@ class DecodedPlacesViewModel: ObservableObject {
         let quiz:     Quiz?
     }
 
+    func startPeriodicFetching(iconMapping: [String: String]) {
+        self.iconMapping = iconMapping
+        
+        Task {
+            await fetchPlaces()
+        }
+
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task {
+                await self?.fetchPlaces()
+            }
+        }
+    }
+
+    func stopPeriodicFetching() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    deinit {
+        stopPeriodicFetching()
+    }
+
     // MARK: – Fetch places
-    func fetchPlaces(iconMapping: [String: String]) async {
+    func fetchPlaces() async {
         guard let url = URL(string: "\(baseURL)/places") else { return }
 
         var req = URLRequest(url: url)
@@ -61,7 +87,7 @@ class DecodedPlacesViewModel: ObservableObject {
             var decoded = try decoder.decode([DecodedPlace].self, from: data)
             for i in decoded.indices {
                 decoded[i].iconName =
-                    iconMapping["\(decoded[i].category_id)"] ?? "mappin.circle.fill"
+                    self.iconMapping["\(decoded[i].category_id)"] ?? "mappin.circle.fill"
             }
             places = decoded
             for (index, place) in decoded.enumerated() {
@@ -126,6 +152,7 @@ class DecodedPlacesViewModel: ObservableObject {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        print("Users: \(currentUser)")
 
         let payload = CaptureReq(
             place_id: placeID,

@@ -12,6 +12,7 @@ import CoreLocation
 struct MapboxViewWrapper: UIViewRepresentable {
     @Binding var places: [Place]
     @Binding var userLocation: CLLocation?
+    var currentUser: String
     @Environment(\.colorScheme) var colorScheme
     @State private var isStyleLoaded = false
     var onMapTap: ((CLLocationCoordinate2D) -> Void)? = nil
@@ -284,7 +285,11 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 annotation.textSize = 12
                 let colorIcon: UIColor
                 if place.isCaptured {
-                    colorIcon = .red
+                    if let capturedUser = place.user_captured, capturedUser == parent.currentUser {
+                        colorIcon = .green 
+                    } else {
+                        colorIcon = .red 
+                    }
                 } else {
                     colorIcon = colorScheme == .dark ? .white : .black
                 }
