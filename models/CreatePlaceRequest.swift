@@ -42,6 +42,18 @@ func createPlace(
     urlRequest.httpMethod = "POST"
     urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
     
+    // 👉 Add the JWT token here:
+    if let token = UserDefaults.standard.string(forKey: "authToken") {
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    } else {
+        completion(.failure(NSError(
+            domain: "PlaceAPI",
+            code: 401,
+            userInfo: [NSLocalizedDescriptionKey: "No JWT token found. Please log in."]
+        )))
+        return
+    }
+    
     do {
         let encoder = JSONEncoder()
         urlRequest.httpBody = try encoder.encode(requestBody)

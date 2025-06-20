@@ -1,24 +1,14 @@
-//
-//  AdminMapView.swift
-//  AppDevelopment
-//
-//  Created by Artyom Grishayev on 13/05/2025.
-//
-
 import SwiftUI
 import MapboxMaps
 import CoreLocation
 
 struct AdminMapView: View {
     @Binding var places: [DecodedPlace]
-    @State private var isEditing = false
     @State private var showingAddSheet = false
     @State private var newPlaceName = ""
-    @State private var newPlaceCoord: CLLocationCoordinate2D?
-    @State private var selectedPinCoord: CLLocationCoordinate2D? = nil
-
     @State private var isSaving = false
     @State private var saveError: String?
+    @State private var mapCenter: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 52.78, longitude: 6.90)
 
     @AppStorage("username") private var currentUser = "player1"
 
@@ -39,27 +29,69 @@ struct AdminMapView: View {
             MapboxViewWrapper(
                 places: .constant(mapboxPlaces),
                 userLocation: .constant(userLocation),
-                onMapTap: isEditing ? { coord in
-                    selectedPinCoord = coord
-                    newPlaceCoord = coord
-                } : nil
+                onCameraChange: { newCenter in
+                    mapCenter = newCenter
+                }
             )
             .ignoresSafeArea()
 
-            if isEditing, let pinCoord = selectedPinCoord {
-                PinOverlayView(coordinate: pinCoord)
-            }
-
+            // Static crosshair in the center
+            CrosshairView()
+            
+            // UI Controls
             VStack {
-                Spacer()
+                // Top area - could add other controls here
                 HStack {
-                    Button { isEditing.toggle() } label: {
-                        Image(systemName: isEditing ? "xmark.circle" : "plus.circle")
-                            .font(.largeTitle)
-                            .padding()
-                    }
                     Spacer()
                 }
+                .padding(.top, 60)
+                
+                Spacer()
+                
+                // Bottom controls
+                HStack {
+                    Spacer()
+                    
+                    VStack(spacing: 12) {
+                        // Add Place button
+                        Button(action: {
+                            showingAddSheet = true
+                        }) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 44))
+                                Text("Add Place")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                        }
+                        
+                        // Current coordinates display
+                        VStack(spacing: 2) {
+                            Text("Center Location:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text("\(mapCenter.latitude, specifier: "%.4f")")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Text("\(mapCenter.longitude, specifier: "%.4f")")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    .padding(.trailing, 20)
+                }
+                .padding(.bottom, 40)
             }
         }
         .sheet(isPresented: $showingAddSheet) {
@@ -67,54 +99,52 @@ struct AdminMapView: View {
                 name: newPlaceName,
                 onCancel: {
                     showingAddSheet = false
-                    isEditing       = false
-                    selectedPinCoord = nil
                 },
                 onSave: { finalName, chosenCategoryID in
-                    guard let coord = newPlaceCoord, !finalName.isEmpty else {
+                    guard !finalName.isEmpty else {
                         showingAddSheet = false
-                        isEditing       = false
-                        selectedPinCoord = nil
                         return
                     }
 
                     let requestBody = CreatePlaceRequest(
                         name: finalName,
-                        latitude: coord.latitude,
-                        longitude: coord.longitude,
+                        latitude: mapCenter.latitude,
+                        longitude: mapCenter.longitude,
                         category_id: chosenCategoryID
                     )
 
-                    isSaving  = true
+                    print("Creating place at lat: \(mapCenter.latitude), lon: \(mapCenter.longitude)")
+
+                    isSaving = true
                     saveError = nil
 
                     createPlace(requestBody) { result in
-                        isSaving = false
-                        switch result {
-                        case .success(let pr):
-                            let icon = allCategories
-                                .first(where: { $0.id == pr.category_id })?
-                                .iconName ?? "mappin.circle.fill"
+                        DispatchQueue.main.async {
+                            isSaving = false
+                            switch result {
+                            case .success(let pr):
+                                let icon = allCategories
+                                    .first(where: { $0.id == pr.category_id })?
+                                    .iconName ?? "mappin.circle.fill"
 
-                            let decoded = DecodedPlace(
-                                id:            pr.id,
-                                name:          pr.name,
-                                latitude:      pr.latitude,
-                                longitude:     pr.longitude,
-                                category_id:   pr.category_id,
-                                captured:      pr.captured,
-                                user_captured: pr.user_captured,
-                                cooldown_until: nil,
-                                iconName:      icon
-                            )
-                            places.append(decoded)
-                            showingAddSheet = false
-                            isEditing       = false
-                            selectedPinCoord = nil
+                                let decoded = DecodedPlace(
+                                    id: pr.id,
+                                    name: pr.name,
+                                    latitude: pr.latitude,
+                                    longitude: pr.longitude,
+                                    category_id: pr.category_id,
+                                    captured: pr.captured,
+                                    user_captured: pr.user_captured,
+                                    cooldown_until: nil,
+                                    iconName: icon
+                                )
+                                places.append(decoded)
+                                showingAddSheet = false
 
-                        case .failure(let err):
-                            saveError = err.localizedDescription
-                            selectedPinCoord = nil
+                            case .failure(let err):
+                                saveError = err.localizedDescription
+                                print("Failed to create place: \(err)")
+                            }
                         }
                     }
                 }
@@ -129,12 +159,66 @@ struct AdminMapView: View {
                 }
             }
         }
+        .alert("Error", isPresented: .constant(saveError != nil)) {
+            Button("OK") { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
+    }
+}
+
+struct CrosshairView: View {
+    var body: some View {
+        ZStack {
+            // Crosshair lines
+            Rectangle()
+                .fill(Color.red)
+                .frame(width: 2, height: 40)
+            
+            Rectangle()
+                .fill(Color.red)
+                .frame(width: 40, height: 2)
+            
+            // Center dot
+            Circle()
+                .fill(Color.red)
+                .frame(width: 8, height: 8)
+            
+            // Outer circle for better visibility
+            Circle()
+                .stroke(Color.white, lineWidth: 2)
+                .frame(width: 60, height: 60)
+            
+            Circle()
+                .stroke(Color.red, lineWidth: 1)
+                .frame(width: 60, height: 60)
+        }
+        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+    }
+}
+
+// Alternative crosshair design
+struct CrosshairViewAlt: View {
+    var body: some View {
+        ZStack {
+            // Target-style crosshair
+            Image(systemName: "plus.circle")
+                .font(.system(size: 50))
+                .foregroundColor(.red)
+                .background(
+                    Circle()
+                        .fill(Color.white.opacity(0.8))
+                        .frame(width: 60, height: 60)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
     }
 }
 
 struct PinOverlayView: View {
     let coordinate: CLLocationCoordinate2D
     @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         GeometryReader { geo in
             Image(systemName: "mappin.circle.fill")

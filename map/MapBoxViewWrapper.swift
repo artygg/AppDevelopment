@@ -15,6 +15,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
     @Environment(\.colorScheme) var colorScheme
     @State private var isStyleLoaded = false
     var onMapTap: ((CLLocationCoordinate2D) -> Void)? = nil
+    var onCameraChange: ((CLLocationCoordinate2D) -> Void)? = nil
     
     func makeUIView(context: Context) -> MapView {
         print("Initializing MapView...")
@@ -55,7 +56,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         mapView.location.options.puckType = .puck2D()
         mapView.location.options.puckBearingEnabled = true
-        mapView.location.options.puckBearingSource = .heading
+        mapView.location.options.puckBearing = .heading
         
         if let userLocation = userLocation {
             let cameraOptions = CameraOptions(
@@ -71,6 +72,11 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
         mapView.addGestureRecognizer(tapGesture)
+
+        mapView.mapboxMap.onEvery(event: .cameraChanged) { [mapView] _ in
+            let center = mapView.cameraState.center
+            self.onCameraChange?(center)
+        }
         
         return mapView
     }
@@ -78,24 +84,20 @@ struct MapboxViewWrapper: UIViewRepresentable {
     private func hideAllTextLabels(mapView: MapView) {
         guard isStyleLoaded else { return }
         
-        do {
-            let layers = try mapView.mapboxMap.style.allLayerIdentifiers
-            try layers.forEach { layer in
-                if layer.type == .symbol {
-                    try mapView.mapboxMap.style.setLayerProperty(for: layer.id, property: "visibility", value: "none")
-                }
+        let layers = mapView.mapboxMap.style.allLayerIdentifiers
+        layers.forEach { layer in
+            if layer.type == .symbol {
+                try? mapView.mapboxMap.style.setLayerProperty(for: layer.id, property: "visibility", value: "none")
             }
-            
-            let labelLayers = [
-                "road-label", "waterway-label", "natural-label",
-                "poi-label", "country-label", "settlement-label",
-                "state-label", "place-label", "airport-label"
-            ]
-            labelLayers.forEach { layerId in
-                try? mapView.mapboxMap.style.setLayerProperty(for: layerId, property: "visibility", value: "none")
-            }
-        } catch {
-            print("Error hiding text layers: \(error)")
+        }
+        
+        let labelLayers = [
+            "road-label", "waterway-label", "natural-label",
+            "poi-label", "country-label", "settlement-label",
+            "state-label", "place-label", "airport-label"
+        ]
+        labelLayers.forEach { layerId in
+            try? mapView.mapboxMap.style.setLayerProperty(for: layerId, property: "visibility", value: "none")
         }
     }
 
@@ -123,7 +125,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         let newStyleURI = colorScheme == .dark ? StyleURI.dark : StyleURI.streets
         if uiView.mapboxMap.style.uri?.rawValue != newStyleURI.rawValue {
-            try? uiView.mapboxMap.style.styleManager.setStyleURIForUri(newStyleURI.rawValue)
+            uiView.mapboxMap.style.styleManager.setStyleURIForUri(newStyleURI.rawValue)
         }
         
         uiView.ornaments.options.attributionButton.margins = .init(x: -1000, y: 0)
@@ -303,11 +305,10 @@ struct MapboxViewWrapper: UIViewRepresentable {
             
             for baseIconName in baseIcons {
                 let themedIconName = "\(baseIconName)_\(themeSuffix)"
-                do {
-                    let _ = try mapView.mapboxMap.style.image(withId: themedIconName)
+                if let _ = mapView.mapboxMap.style.image(withId: themedIconName) {
                     print("Themed icon '\(themedIconName)' is registered and available")
-                } catch {
-                    print("Themed icon '\(themedIconName)' is NOT available: \(error.localizedDescription)")
+                } else {
+                    print("Themed icon '\(themedIconName)' is NOT available")
                 }
             }
         }
