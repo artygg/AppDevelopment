@@ -10,7 +10,8 @@ struct ContentView: View {
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 10
 
-    @State private var isAdmin = false
+    @State private var hasAdminRights = false
+    @State private var activeAdmin = false
     @State private var showCamera = false
     @State private var showProfile = false
     @State private var capturedImage: UIImage?
@@ -64,7 +65,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if isAdmin {
+            if activeAdmin {
                 adminView
             } else {
                 gameView
@@ -72,7 +73,7 @@ struct ContentView: View {
         }
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { loc in
             userLocation = loc
-            if !isAdmin {
+            if !activeAdmin {
                 handleLocation(loc)
             }
         }
@@ -94,7 +95,7 @@ struct ContentView: View {
                 Spacer()
                 
                 Button("Switch to Game") {
-                    isAdmin = false
+                    activeAdmin = false
                 }
                 .padding()
                 .background(Color.blue)
@@ -134,14 +135,16 @@ struct ContentView: View {
             
             VStack {
                 HStack {
-                    Button("Admin") {
-                        isAdmin = true
+                    if (hasAdminRights) {
+                        Button("Admin") {
+                            activeAdmin = true
+                        }
+                        .padding(8)
+                        .background(Color.red.opacity(0.8))
+                        .foregroundColor(.white)
+                        .cornerRadius(6)
+                        .font(.caption)
                     }
-                    .padding(8)
-                    .background(Color.red.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(6)
-                    .font(.caption)
                     
                     Spacer()
                 }
