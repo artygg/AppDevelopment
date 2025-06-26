@@ -1,20 +1,11 @@
+//
+//  QuizView.swift
+//  AppDevelopment
+//
+//  Created by M1stake Sequence on 2025-06-26.
+//
+
 import SwiftUI
-
-private let passCount = 1
-private let defaultTime = 15
-
-struct Quiz: Codable {
-    let place_id: Int
-    var questions: [QuizQuestion]
-}
-
-struct QuizQuestion: Codable, Identifiable {
-    let id: String
-    let text: String
-    let options: [String]
-    let answer: Int
-    var timeLimit: Int? = nil
-}
 
 struct QuizView: View {
     let quiz: Quiz
@@ -33,11 +24,11 @@ struct QuizView: View {
     @State private var startTime = DispatchTime.now()
     @State private var elapsedMs = 0
 
-    // New camera states
     @State private var showCamera = false
     @State private var capturedImage: UIImage? = nil
 
     @EnvironmentObject var decodedVM: DecodedPlacesViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,7 +38,11 @@ struct QuizView: View {
             Spacer()
             footer
         }
-        .background(Color(white: 0.95).ignoresSafeArea())
+        .background(
+            colorScheme == .dark
+            ? Color.black.ignoresSafeArea()
+            : Color(white: 0.95).ignoresSafeArea()
+        )
         .onDisappear { timer?.invalidate() }
     }
 
@@ -76,7 +71,10 @@ struct QuizView: View {
             Divider()
         }
         .padding(.bottom, 12)
-        .background(Color.white.ignoresSafeArea(edges: .top))
+        .background(
+            (colorScheme == .dark ? Color(.systemGray6).opacity(0.3) : Color.white)
+                .ignoresSafeArea(edges: .top)
+        )
     }
 
     private var questionCard: some View {
@@ -90,7 +88,11 @@ struct QuizView: View {
                 .foregroundColor(.primary)
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color.blue.opacity(0.08))
+                .background(
+                    colorScheme == .dark
+                    ? Color.blue.opacity(0.25)
+                    : Color.blue.opacity(0.08)
+                )
                 .cornerRadius(18)
                 .padding(.horizontal, 20)
 
@@ -102,8 +104,16 @@ struct QuizView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(selected == i ? Color.blue : Color.white)
-                        .foregroundColor(selected == i ? .white : .blue)
+                        .background(
+                            selected == i
+                            ? Color.blue
+                            : (colorScheme == .dark ? Color(white: 0.15) : Color.white)
+                        )
+                        .foregroundColor(
+                            selected == i
+                            ? .white
+                            : (colorScheme == .dark ? .white : .blue)
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 18)
                                 .stroke(Color.blue, lineWidth: 2)
@@ -147,7 +157,11 @@ struct QuizView: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(Color.white)
+        .background(
+            colorScheme == .dark
+            ? Color(.systemGray6).opacity(0.3)
+            : Color.white
+        )
         .cornerRadius(16, corners: [.topLeft, .topRight])
         .shadow(color: .black.opacity(0.07), radius: 7, x: 0, y: -4)
         .padding(.top, 8)
