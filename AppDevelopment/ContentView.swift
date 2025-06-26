@@ -52,7 +52,7 @@ struct ContentView: View {
                 user_captured: dp.user_captured
             )
         }
-        print("MapboxPlaces computed: \(mappedPlaces.count) places")
+//        print("MapboxPlaces computed: \(mappedPlaces.count) places")
         return mappedPlaces
     }
     
@@ -185,7 +185,8 @@ struct ContentView: View {
             places: .constant(mapboxPlaces),
             userLocation: $userLocation,
             currentUser: currentUser,
-            shouldFocusOnUser: $shouldFocusOnUser
+            shouldFocusOnUser: $shouldFocusOnUser,
+            onAnnotationTap: handleAnnotationTap
         )
         .ignoresSafeArea()
         .onAppear {
@@ -352,7 +353,19 @@ struct ContentView: View {
         showQuiz = false
         quiz = nil
     }
+
+    func handleAnnotationTap(place: Place) {
+        if place.isCaptured, place.user_captured == currentUser {
+            print("Tapped on your captured place")
+            // Open mine window logic here
+        } else {
+            print("Tapped on uncaptured place by you")
+            // Open quiz start menu logic here
+        }
+    }
 }
+
+
 
 struct Content_Previews: PreviewProvider {
     static var previews: some View {

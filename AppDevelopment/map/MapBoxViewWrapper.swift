@@ -19,10 +19,12 @@ struct MapboxViewWrapper: UIViewRepresentable {
     var onCameraChange: ((CLLocationCoordinate2D) -> Void)? = nil
     
     @Binding var shouldFocusOnUser: Bool
+    var onAnnotationTap: ((Place) -> Void)? = nil
+
     @State private var hasInitiallyFocused = false
     
     func makeUIView(context: Context) -> MapView {
-        print("Initializing MapView...")
+//        print("Initializing MapView...")
         
         guard let token = Bundle.main.object(forInfoDictionaryKey: "MBXAccessToken") as? String else {
             print("Error: Mapbox access token not found in Info.plist")
@@ -47,13 +49,13 @@ struct MapboxViewWrapper: UIViewRepresentable {
         mapView.mapboxMap.onEvery(event: .styleLoaded) { [weak mapView] _ in
             guard let mapView = mapView else { return }
             DispatchQueue.main.async {
-                print("Style loaded!")
+//                print("Style loaded!")
                 self.isStyleLoaded = true
                 self.hideAllTextLabels(mapView: mapView)
                 
                 context.coordinator.registerIcons(for: self.colorScheme)
                 
-                print("Style loaded, updating annotations...")
+//                print("Style loaded, updating annotations...")
                 context.coordinator.updateAnnotations(for: self.colorScheme)
             }
         }
@@ -72,7 +74,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         context.coordinator.mapView = mapView
         context.coordinator.places = places
-        print("Set mapView and initial places (\(places.count)) in coordinator")
+//        print("Set mapView and initial places (\(places.count)) in coordinator")
         
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
         mapView.addGestureRecognizer(tapGesture)
@@ -106,13 +108,14 @@ struct MapboxViewWrapper: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MapView, context: Context) {
-        print("UpdateUIView called with \(places.count) places")
+//        print("UpdateUIView called with \(places.count) places")
         
         context.coordinator.places = places
         context.coordinator.userLocation = userLocation
         
         if !hasInitiallyFocused && userLocation != nil && isStyleLoaded {
             hasInitiallyFocused = true
+            
             context.coordinator.focusOnUser()
         }
         
@@ -151,7 +154,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject {
+    class Coordinator: NSObject, AnnotationInteractionDelegate {
         var parent: MapboxViewWrapper
         var places: [Place] = []
         var userLocation: CLLocation?
@@ -168,16 +171,16 @@ struct MapboxViewWrapper: UIViewRepresentable {
         // MARK: - Focus on User Implementation
         func focusOnUser() {
             guard let mapView = mapView else {
-                print("Cannot focus on user: MapView is nil")
+//                print("Cannot focus on user: MapView is nil")
                 return
             }
             
             guard let userLocation = userLocation else {
-                print("Cannot focus on user: User location is nil")
+//                print("Cannot focus on user: User location is nil")
                 return
             }
             
-            print("Focusing on user location: \(userLocation.coordinate)")
+//            print("Focusing on user location: \(userLocation.coordinate)")
             
             let cameraOptions = CameraOptions(
                 center: userLocation.coordinate,
@@ -191,7 +194,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 duration: 1.2,
                 curve: .easeInOut
             ) { [weak self] _ in
-                print("Focus on user animation completed")
+//                print("Focus on user animation completed")
                 let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                 impactFeedback.impactOccurred()
             }
@@ -200,7 +203,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         func registerIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
             
-            print("Registering icons for \(colorScheme == .dark ? "dark" : "light") theme...")
+//            print("Registering icons for \(colorScheme == .dark ? "dark" : "light") theme...")
             
             let allIcons = Set(places.map { $0.placeIcon })
             
@@ -238,7 +241,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
                     do {
                         let themedIconId = "\(iconName)_\(colorScheme == .dark ? "dark" : "light")"
                         try mapView.mapboxMap.style.addImage(themedImage, id: themedIconId)
-                        print("Successfully registered themed icon: \(themedIconId)")
+//                        print("Successfully registered themed icon: \(themedIconId)")
                     } catch {
                         print("Failed to register themed icon '\(iconName)': \(error.localizedDescription)")
                     }
@@ -248,7 +251,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
             }
             
             iconsRegistered = true
-            print("Themed icon registration completed")
+//            print("Themed icon registration completed")
         }
         
         private func createThemedIcon(
@@ -288,28 +291,31 @@ struct MapboxViewWrapper: UIViewRepresentable {
         }
         
         func updateAnnotations(for colorScheme: ColorScheme) {
-            print("UpdateAnnotations called for \(colorScheme == .dark ? "dark" : "light") theme")
-            print("   - mapView is nil: \(mapView == nil)")
-            print("   - places count: \(places.count)")
-            print("   - registered icons count: \(registeredIcons.count)")
+//            print("UpdateAnnotations called for \(colorScheme == .dark ? "dark" : "light") theme")
+//            print("   - mapView is nil: \(mapView == nil)")
+//            print("   - places count: \(places.count)")
+//            print("   - registered icons count: \(registeredIcons.count)")
             
             guard let mapView = mapView else {
-                print("MapView is nil")
+//                print("MapView is nil")
                 return
             }
             
             guard !places.isEmpty else {
-                print("No places to display")
+//                print("No places to display")
                 return
             }
             
             registerIcons(for: colorScheme)
             
-            print("Starting annotation update with \(places.count) places")
+//            print("Starting annotation update with \(places.count) places")
             
             if annotationManager == nil {
                 annotationManager = mapView.annotations.makePointAnnotationManager()
+                annotationManager?.delegate = self // Set delegate for annotation tap events
                 print("Created annotation manager")
+            } else {
+                annotationManager?.delegate = self // Ensure delegate is set
             }
             
             var newAnnotations: [PointAnnotation] = []
@@ -322,13 +328,9 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 var annotation = PointAnnotation(coordinate: place.coordinate)
                 annotation.iconImage = themedIconName
                 annotation.textField = place.name
-
-                
                 annotation.iconSize = 1.0
-                
                 annotation.textAnchor = .top
                 annotation.textOffset = [0, 1.5]
-                
                 annotation.textSize = 12
                 let colorIcon: UIColor
                 if place.isCaptured {
@@ -340,20 +342,15 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 } else {
                     colorIcon = colorScheme == .dark ? .white : .black
                 }
-
-                
                 annotation.textColor = StyleColor(colorIcon)
-
-
-
                 annotation.textHaloWidth = 1.0
                 
-                print("[\(index)] \(place.name) -> \(themedIconName) at \(place.coordinate)")
+//                print("[\(index)] \(place.name) -> \(themedIconName) at \(place.coordinate)")
                 newAnnotations.append(annotation)
             }
             
             annotationManager?.annotations = newAnnotations
-            print("Applied \(newAnnotations.count) themed annotations to manager")
+//            print("Applied \(newAnnotations.count) themed annotations to manager")
             
             debugAvailableIcons(for: colorScheme)
         }
@@ -361,7 +358,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         func debugAvailableIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
             
-            print("Checking registered themed icons...")
+//            print("Checking registered themed icons...")
             
             let baseIcons = Set(places.map { $0.placeIcon }).union(["mappin.circle.fill", "building.2"])
             let themeSuffix = colorScheme == .dark ? "dark" : "light"
@@ -369,9 +366,9 @@ struct MapboxViewWrapper: UIViewRepresentable {
             for baseIconName in baseIcons {
                 let themedIconName = "\(baseIconName)_\(themeSuffix)"
                 if let _ = mapView.mapboxMap.style.image(withId: themedIconName) {
-                    print("Themed icon '\(themedIconName)' is registered and available")
+//                    print("Themed icon '\(themedIconName)' is registered and available")
                 } else {
-                    print("Themed icon '\(themedIconName)' is NOT available")
+//                    print("Themed icon '\(themedIconName)' is NOT available")
                 }
             }
         }
@@ -381,6 +378,20 @@ struct MapboxViewWrapper: UIViewRepresentable {
             let point = gesture.location(in: mapView)
             let coordinate = mapView.mapboxMap.coordinate(for: point)
             parent.onMapTap?(coordinate)
+        }
+        
+        // MARK: - AnnotationInteractionDelegate
+        func annotationManager(_ manager: AnnotationManager, didDetectTappedAnnotations annotations: [Annotation]) {
+            for annotation in annotations {
+                if let pointAnnotation = annotation as? PointAnnotation {
+                    if let tappedPlace = places.first(where: { place in
+                        place.coordinate.latitude == pointAnnotation.point.coordinates.latitude &&
+                        place.coordinate.longitude == pointAnnotation.point.coordinates.longitude
+                    }) {
+                        parent.onAnnotationTap?(tappedPlace)
+                    }
+                }
+            }
         }
     }
 }
