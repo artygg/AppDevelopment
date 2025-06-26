@@ -9,6 +9,7 @@ struct ContentView: View {
     @StateObject private var webSocketManager = WebSocketManager()
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 10
+    @AppStorage("autoFocusEnabled") private var autoFocusEnabled: Bool = true
 
     @State private var hasAdminRights = false
     @State private var activeAdmin = false
@@ -52,7 +53,6 @@ struct ContentView: View {
                 user_captured: dp.user_captured
             )
         }
-//        print("MapboxPlaces computed: \(mappedPlaces.count) places")
         return mappedPlaces
     }
     
@@ -104,7 +104,7 @@ struct ContentView: View {
                 .padding()
             }
             
-            AdminMapView(places: $decodedVM.places)
+            AdminMapView(places: $decodedVM.places, autoFocusEnabled: $autoFocusEnabled)
         }
     }
     
@@ -121,8 +121,9 @@ struct ContentView: View {
                 capturedCount: capturedCount,
                 totalCount:    totalCount,
                 capturedPlaces: capturedNames,
+                autoFocusEnabled: $autoFocusEnabled,
                 mineCount:     mineCount,
-                openBoard:     { showLeaderboard = true }
+                openBoard:     { showLeaderboard = true },
             )
             
             SideButtonsView(
@@ -146,10 +147,10 @@ struct ContentView: View {
                         .font(.caption)
                     }
                     
-                    Spacer()
+                    Spacer()                    
                 }
                 .padding(.top, 50)
-                .padding(.leading, 20)
+                .padding(.horizontal, 20)
                 
                 Spacer()
             }
@@ -186,6 +187,7 @@ struct ContentView: View {
             userLocation: $userLocation,
             currentUser: currentUser,
             shouldFocusOnUser: $shouldFocusOnUser,
+            autoFocusEnabled: autoFocusEnabled,
             onAnnotationTap: handleAnnotationTap
         )
         .ignoresSafeArea()
@@ -379,8 +381,6 @@ struct ContentView: View {
         }
     }
 }
-
-
 
 struct Content_Previews: PreviewProvider {
     static var previews: some View {
