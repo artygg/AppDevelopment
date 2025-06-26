@@ -19,13 +19,12 @@ struct MapboxViewWrapper: UIViewRepresentable {
     var onCameraChange: ((CLLocationCoordinate2D) -> Void)? = nil
     
     @Binding var shouldFocusOnUser: Bool
+    var autoFocusEnabled: Bool
     var onAnnotationTap: ((Place) -> Void)? = nil
 
     @State private var hasInitiallyFocused = false
     
     func makeUIView(context: Context) -> MapView {
-//        print("Initializing MapView...")
-        
         guard let token = Bundle.main.object(forInfoDictionaryKey: "MBXAccessToken") as? String else {
             print("Error: Mapbox access token not found in Info.plist")
             fatalError("Mapbox access token not found in Info.plist")
@@ -49,13 +48,10 @@ struct MapboxViewWrapper: UIViewRepresentable {
         mapView.mapboxMap.onEvery(event: .styleLoaded) { [weak mapView] _ in
             guard let mapView = mapView else { return }
             DispatchQueue.main.async {
-//                print("Style loaded!")
                 self.isStyleLoaded = true
                 self.hideAllTextLabels(mapView: mapView)
                 
                 context.coordinator.registerIcons(for: self.colorScheme)
-                
-//                print("Style loaded, updating annotations...")
                 context.coordinator.updateAnnotations(for: self.colorScheme)
             }
         }
@@ -74,7 +70,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         context.coordinator.mapView = mapView
         context.coordinator.places = places
-//        print("Set mapView and initial places (\(places.count)) in coordinator")
+        context.coordinator.autoFocusEnabled = autoFocusEnabled
         
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
         mapView.addGestureRecognizer(tapGesture)
@@ -108,18 +104,17 @@ struct MapboxViewWrapper: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MapView, context: Context) {
-//        print("UpdateUIView called with \(places.count) places")
-        
         context.coordinator.places = places
         context.coordinator.userLocation = userLocation
+        context.coordinator.autoFocusEnabled = autoFocusEnabled
         
-        if !hasInitiallyFocused && userLocation != nil && isStyleLoaded {
+        if !hasInitiallyFocused && userLocation != nil && isStyleLoaded && autoFocusEnabled {
             hasInitiallyFocused = true
             
             context.coordinator.focusOnUser()
         }
         
-        if shouldFocusOnUser {
+        if shouldFocusOnUser && autoFocusEnabled {
             context.coordinator.focusOnUser()
             DispatchQueue.main.async {
                 shouldFocusOnUser = false
@@ -163,6 +158,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         var iconsRegistered = false
         var currentColorScheme: ColorScheme = .light
         var registeredIcons: Set<String> = []
+        var autoFocusEnabled: Bool = true
         
         init(_ parent: MapboxViewWrapper) {
             self.parent = parent
@@ -170,18 +166,18 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         // MARK: - Focus on User Implementation
         func focusOnUser() {
+            guard autoFocusEnabled else {
+                return
+            }
+            
             guard let mapView = mapView else {
-//                print("Cannot focus on user: MapView is nil")
                 return
             }
             
             guard let userLocation = userLocation else {
-//                print("Cannot focus on user: User location is nil")
                 return
             }
-            
-//            print("Focusing on user location: \(userLocation.coordinate)")
-            
+                        
             let cameraOptions = CameraOptions(
                 center: userLocation.coordinate,
                 zoom: 16,
@@ -194,17 +190,15 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 duration: 1.2,
                 curve: .easeInOut
             ) { [weak self] _ in
-//                print("Focus on user animation completed")
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
+                if self?.autoFocusEnabled == true {
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                }
             }
         }
         
         func registerIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
-            
-//            print("Registering icons for \(colorScheme == .dark ? "dark" : "light") theme...")
-            
             let allIcons = Set(places.map { $0.placeIcon })
             
             let knownSymbols = [
@@ -241,7 +235,6 @@ struct MapboxViewWrapper: UIViewRepresentable {
                     do {
                         let themedIconId = "\(iconName)_\(colorScheme == .dark ? "dark" : "light")"
                         try mapView.mapboxMap.style.addImage(themedImage, id: themedIconId)
-//                        print("Successfully registered themed icon: \(themedIconId)")
                     } catch {
                         print("Failed to register themed icon '\(iconName)': \(error.localizedDescription)")
                     }
@@ -251,7 +244,6 @@ struct MapboxViewWrapper: UIViewRepresentable {
             }
             
             iconsRegistered = true
-//            print("Themed icon registration completed")
         }
         
         private func createThemedIcon(
@@ -291,31 +283,22 @@ struct MapboxViewWrapper: UIViewRepresentable {
         }
         
         func updateAnnotations(for colorScheme: ColorScheme) {
-//            print("UpdateAnnotations called for \(colorScheme == .dark ? "dark" : "light") theme")
-//            print("   - mapView is nil: \(mapView == nil)")
-//            print("   - places count: \(places.count)")
-//            print("   - registered icons count: \(registeredIcons.count)")
-            
             guard let mapView = mapView else {
-//                print("MapView is nil")
                 return
             }
             
             guard !places.isEmpty else {
-//                print("No places to display")
                 return
             }
             
             registerIcons(for: colorScheme)
             
-//            print("Starting annotation update with \(places.count) places")
-            
             if annotationManager == nil {
                 annotationManager = mapView.annotations.makePointAnnotationManager()
-                annotationManager?.delegate = self // Set delegate for annotation tap events
+                annotationManager?.delegate = self
                 print("Created annotation manager")
             } else {
-                annotationManager?.delegate = self // Ensure delegate is set
+                annotationManager?.delegate = self
             }
             
             var newAnnotations: [PointAnnotation] = []
@@ -335,9 +318,9 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 let colorIcon: UIColor
                 if place.isCaptured {
                     if let capturedUser = place.user_captured, capturedUser == parent.currentUser {
-                        colorIcon = .green 
+                        colorIcon = .green
                     } else {
-                        colorIcon = .red 
+                        colorIcon = .red
                     }
                 } else {
                     colorIcon = colorScheme == .dark ? .white : .black
@@ -345,30 +328,25 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 annotation.textColor = StyleColor(colorIcon)
                 annotation.textHaloWidth = 1.0
                 
-//                print("[\(index)] \(place.name) -> \(themedIconName) at \(place.coordinate)")
                 newAnnotations.append(annotation)
             }
             
             annotationManager?.annotations = newAnnotations
-//            print("Applied \(newAnnotations.count) themed annotations to manager")
-            
             debugAvailableIcons(for: colorScheme)
         }
         
         func debugAvailableIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
-            
-//            print("Checking registered themed icons...")
-            
+                        
             let baseIcons = Set(places.map { $0.placeIcon }).union(["mappin.circle.fill", "building.2"])
             let themeSuffix = colorScheme == .dark ? "dark" : "light"
             
             for baseIconName in baseIcons {
                 let themedIconName = "\(baseIconName)_\(themeSuffix)"
                 if let _ = mapView.mapboxMap.style.image(withId: themedIconName) {
-//                    print("Themed icon '\(themedIconName)' is registered and available")
+                    print("Themed icon '\(themedIconName)' is registered and available")
                 } else {
-//                    print("Themed icon '\(themedIconName)' is NOT available")
+                    print("Themed icon '\(themedIconName)' is NOT available")
                 }
             }
         }
