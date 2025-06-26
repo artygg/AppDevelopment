@@ -218,19 +218,27 @@ struct ContentView: View {
         )
     }
 
-    var quizCover: some View {
+    @ViewBuilder
+    private var quizCover: some View {
         ZStack {
+            // 1️⃣ Unified background that adapts with the system appearance
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
             if loadingQuiz {
-                VStack {
-                    Spacer()
+                VStack(spacing: 16) {
                     ProgressView("Loading Quiz…")
+                        .progressViewStyle(.circular)
+
                     Button("Close") {
                         loadingQuiz = false
-                        showQuiz = false
+                        showQuiz    = false
                     }
-                    .padding(.top, 12)
-                    Spacer()
+                    .buttonStyle(.bordered)
+
                 }
+                // 2️⃣ Make the loader occupy the whole sheet so no "letter-box" strip appears
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let q = quiz, let place = placeToCapture {
                 QuizView(quiz: q, place: place) { correct, elapsed in
                     Task { @MainActor in
@@ -255,12 +263,14 @@ struct ContentView: View {
                 .id(q.place_id)
                 .environmentObject(decodedVM)
             } else {
-                VStack { Spacer(); Text("No quiz."); Spacer() }
+                VStack {
+                    Text("No quiz.")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color.white.opacity(0.98).ignoresSafeArea())
     }
-    
+
     private func openOwnerQuiz(_ quiz: Quiz) {
         ownerQuiz     = quiz
         showOwnerQuiz = true
