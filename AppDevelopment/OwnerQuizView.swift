@@ -1,109 +1,207 @@
+//
+//  OwnerQuizView.swift
+//  AppDevelopment
+//
+//  Created by M1stake Sequence on 08-06-2025.
+//
+
 import SwiftUI
 
-let minedTime = 5
+private let minedTime = 5
+private let corner    = CGFloat(22)
 
 struct OwnerQuizView: View {
+    // external
     @Binding var mineCount: Int
+    let        onClose: () -> Void
 
+    // internal
+    @State private var quiz:  Quiz
     @State private var mined: Set<String>
-    @State private var quiz: Quiz
-    let onClose: () -> Void
+
+    @Environment(\.colorScheme)      private var scheme
+    @Environment(\.dismiss)          private var dismiss
 
     init(mineCount: Binding<Int>, quiz: Quiz, onClose: @escaping () -> Void) {
-        self._mineCount = mineCount
-        self._quiz      = State(initialValue: quiz)
-        self.onClose    = onClose
+        _mineCount = mineCount
+        _quiz      = State(initialValue: quiz)
+        self.onClose = onClose
 
-        let preMined = quiz.questions
+        let alreadyMined = quiz.questions
             .filter { $0.timeLimit == minedTime }
             .map(\.id)
-
-        _mined = State(initialValue: Set(preMined))
-        
-        print("OwnerQuizView init - placeID: \(quiz.place_id), questions: \(quiz.questions.count), preMined: \(preMined)")
+        _mined = State(initialValue: Set(alreadyMined))
+        print("💣 OwnerQuizView init – place \(quiz.place_id) – pre-mined \(alreadyMined.count)")
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(quiz.questions) { q in
-                    HStack {
-                        Text(q.text)
-                            .font(.body)
-                            .lineLimit(2)
-                        Spacer()
+            ZStack {
+                background
+                
+                VStack(spacing: 24) {
+                    minesLeftChip
+                    questionsList
+                }
+            }
+            .navigationTitle("Plant traps")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { closeToolbar }
+            .task { print("🟢 OwnerQuizView task – loaded \(quiz.questions.count) questions") }
+        }
+    }
 
-                        if mined.contains(q.id) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundColor(.green)
-                        } else {
-                            Button("Mine (\(mineCount))") {
-                                print("Button tapped for q.id: \(q.id)")
-                                print("Current mineCount: \(mineCount)")
-                                print("Already mined: \(mined.contains(q.id))")
-                                
-                                guard !mined.contains(q.id), mineCount > 0 else {
-                                    print("Guard failed - already mined: \(mined.contains(q.id)), mineCount: \(mineCount)")
-                                    return
-                                }
-                                
-                                print("Starting mine task...")
-                                
-                                Task {
-                                    do {
-                                        print("Calling MineService.plantMine...")
-                                        print("API URL: \(Config.apiURL)")
-                                        print("PlaceID: \(quiz.place_id), QID: \(q.id)")
-                                        
-                                        try await MineService.plantMine(
-                                            placeID: quiz.place_id,
-                                            qid: q.id
-                                        )
-                                        
-                                        print("MineService.plantMine completed successfully")
-                                        
-                                        await MainActor.run {
-                                            print("Updating UI state...")
-                                            mined.insert(q.id)
-                                            mineCount -= 1
-                                            
-                                            if let idx = quiz.questions.firstIndex(where: { $0.id == q.id }) {
-                                                quiz.questions[idx].timeLimit = minedTime
-                                                print("Updated question timeLimit at index \(idx)")
-                                            }
-                                            
-                                            print("UI state updated - new mineCount: \(mineCount)")
-                                        }
-                                        
-                                        print("Planted mine on q.id: \(q.id)")
-                                    } catch {
-                                        print("Failed to plant mine: \(error)")
-                                        print("Error details: \(error.localizedDescription)")
-                                        if let nsError = error as NSError? {
-                                            print("Error domain: \(nsError.domain), code: \(nsError.code)")
-                                        }
-                                    }
-                                }
-                            }
-                        }
+
+    private var background: some View {
+        LinearGradient(colors: scheme == .dark
+                       ? [.black, .indigo]
+                       : [.white, .blue.opacity(0.25)],
+                       startPoint: .topLeading,
+                       endPoint: .bottomTrailing)
+        .ignoresSafeArea()
+    }
+
+    private var minesLeftChip: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles.rectangle.stack.fill")
+                .font(.title3.weight(.bold))
+            Text("\(mineCount)")
+                .font(.title3.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .background(Color.pink.gradient, in: Capsule())
+        .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+        .padding(.top, 4)
+    }
+
+    private var questionsList: some View {
+        ScrollView {
+            LazyVStack(spacing: 14) {
+                ForEach(quiz.questions) { q in
+                    QuestionRow(question: q,
+                                mined: mined.contains(q.id),
+                                canMine: mineCount > 0,
+                                scheme: scheme)
+                    {
+                        plantMine(for: q)
                     }
-                    .padding(.vertical, 6)
-                    .listRowSeparator(.hidden)
-                    .onAppear {
-                        print("Rendering question id: \(q.id), already mined: \(mined.contains(q.id))")
-                    }
+                    .animation(.spring(), value: mined)
                 }
             }
-            .listStyle(.plain)
-            .navigationTitle("Plant mines")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done", action: onClose)
-                }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    @ToolbarContentBuilder
+    private var closeToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button { onClose() } label: {
+                Image(systemName: "xmark")
+                    .font(.headline.weight(.bold))
             }
         }
-        .onAppear {
-            print("OwnerQuizView appeared")
+    }
+
+
+    private func plantMine(for q: QuizQuestion) {
+        guard !mined.contains(q.id), mineCount > 0 else { return }
+        Task {
+            do {
+                try await MineService.plantMine(placeID: quiz.place_id, qid: q.id)
+                await MainActor.run {
+                    mined.insert(q.id)
+                    mineCount -= 1
+                    if let idx = quiz.questions.firstIndex(where: { $0.id == q.id }) {
+                        quiz.questions[idx].timeLimit = minedTime
+                    }
+                }
+            } catch {
+                print("❌ Failed to place mine:", error.localizedDescription)
+            }
         }
+    }
+}
+
+private struct QuestionRow: View {
+    let question: QuizQuestion
+    let mined:    Bool
+    let canMine:  Bool
+    let scheme:   ColorScheme
+    let action:   () -> Void
+
+    @State private var showOptions = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // question text with gradient line
+            VStack(alignment: .leading, spacing: 6) {
+                Text(question.text)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                
+                Capsule()
+                    .fill(.primary.opacity(0.08))
+                    .frame(height: 2)
+            }
+
+            HStack {
+                if mined {
+                    Label("Mined", systemImage: "checkmark.seal.fill")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule().fill(Color.green.opacity(0.15))
+                        )
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Button {
+                        action()
+                    } label: {
+                        Text(canMine ? "Plant mine" : "No mines left")
+                            .font(.callout.weight(.bold))
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(
+                                (canMine
+                                 ? Color.accentColor
+                                 : Color.secondary.opacity(0.2)),
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(canMine ? .white : .secondary)
+                    .opacity(canMine ? 1 : 0.6)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(showOptions ? 90 : 0))
+                    .foregroundStyle(.secondary)
+                    .animation(.easeInOut, value: showOptions)
+                    .onTapGesture { withAnimation { showOptions.toggle() } }
+            }
+        }
+        .padding(18)
+        .background(cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .shadow(color: .black.opacity(scheme == .dark ? 0.6 : 0.15),
+                radius: 8, y: 4)
+        .onTapGesture { withAnimation(.easeOut) { showOptions.toggle() } }
+    }
+
+    private var cardBackground: some View {
+        (scheme == .dark ? Color.white.opacity(0.05) : Color.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: corner)
+                    .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+            )
     }
 }
