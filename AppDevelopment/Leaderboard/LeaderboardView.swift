@@ -139,16 +139,23 @@ private struct RowItem: View {
     }
     
     private var badge: some View {
-        let fill = isCurrent
-        ? Color.yellow
-        : medalColors[rank] ??
-          (colorScheme == .dark ? Color.white.opacity(0.3)
-                                : Color.black.opacity(0.15))
+        let fill: Color = {
+            if rank <= 3 {
+                // never override the medal colours
+                return medalColors[rank]!
+            } else if isCurrent {
+                return .yellow
+            } else {
+                return colorScheme == .dark ? Color.white.opacity(0.3)
+                                            : Color.black.opacity(0.15)
+            }
+        }()
         
         return Text("#\(rank)")
             .font(.system(size: 18, weight: .heavy, design: .rounded))
-            .foregroundStyle(rank <= 3 || isCurrent ? .black :
-                             (colorScheme == .dark ? .white : .black))
+            .foregroundStyle(rank <= 3 ? .black :    // medal numbers stay black
+                             (isCurrent ? .black :   // keep contrast on yellow
+                              (colorScheme == .dark ? .white : .black)))
             .padding(.vertical, 6)
             .padding(.horizontal, 16)
             .background(fill, in: Capsule())
