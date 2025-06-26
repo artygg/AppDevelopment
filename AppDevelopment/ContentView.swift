@@ -361,8 +361,23 @@ struct ContentView: View {
             print("Tapped on your captured place")
             // Open mine window logic here
         } else {
-            print("Tapped on uncaptured place by you")
-            // Open quiz start menu logic here
+            // Find the corresponding DecodedPlace
+            if let userLoc = userLocation {
+                if let decoded = decodedVM.places.first(where: { $0.name == place.name }) {
+                    let distance = userLoc.distance(from: CLLocation(latitude: decoded.latitude, longitude: decoded.longitude))
+                    if distance < captureRadius {
+                        placeToCapture = decoded
+                        showCapturePopup = true
+                        print("In range! Showing capture popup.")
+                    } else {
+                        print("Place is out of range (", Int(distance), "m)")
+                    }
+                } else {
+                    print("DecodedPlace not found for tapped Place")
+                }
+            } else {
+                print("User location not available")
+            }
         }
     }
 }
