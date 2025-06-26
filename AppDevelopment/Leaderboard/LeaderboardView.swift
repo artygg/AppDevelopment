@@ -24,12 +24,13 @@ struct LeaderboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var vm = LeaderboardViewModel()
     
+    @AppStorage("username") private var currentUser = ""
+    
     private var medalColors: [Int: Color] { colorScheme == .dark ? medalColorsDark : medalColorsLight }
     
     private var gradientColors: [Color] {
-        colorScheme == .dark
-        ? [.black, .indigo.opacity(0.7)]
-        : [.white, .blue.opacity(0.3)]
+        colorScheme == .dark ? [.black, .indigo.opacity(0.7)]
+                             : [.white, .blue.opacity(0.3)]
     }
     
     var body: some View {
@@ -47,7 +48,8 @@ struct LeaderboardView: View {
                 
                 Text("Top Capturers of this World")
                     .font(.headline.weight(.bold))
-                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.6))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.85)
+                                                          : .black.opacity(0.6))
                 
                 list
                     .frame(maxWidth: 460)
@@ -75,44 +77,78 @@ struct LeaderboardView: View {
         )
     }
     
+    // MARK: - list
     private var list: some View {
         VStack(spacing: 4) {
             ForEach(vm.rows.prefix(10)) { row in
-                HStack(spacing: 20) {
-                    badge(rank: row.rank)
-                    Text(row.user)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer()
-                    Text("\(row.captured)")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.12), lineWidth: 1)
-                        )
-                        .shadow(color: medalColors[row.rank, default: .clear].opacity(0.6),
-                                radius: row.rank <= 3 ? 8 : 0, y: 4)
+                RowItem(
+                    rank: row.rank,
+                    user: row.user,
+                    captured: row.captured,
+                    isCurrent: row.user == currentUser,
+                    medalColors: medalColors,
+                    colorScheme: colorScheme
                 )
             }
         }
         .padding(.horizontal)
     }
+}
+
+// MARK: - row (keeps compiler happy)
+private struct RowItem: View {
+    let rank: Int
+    let user: String
+    let captured: Int
+    let isCurrent: Bool
+    let medalColors: [Int: Color]
+    let colorScheme: ColorScheme
     
-    @ViewBuilder
-    private func badge(rank: Int) -> some View {
-        let fill = medalColors[rank] ?? (colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.15))
-        Text("#\(rank)")
+    var body: some View {
+        HStack(spacing: 20) {
+            badge
+            Text(user)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(isCurrent ? .yellow :
+                                 (colorScheme == .dark ? .white : .black))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer()
+            Text("\(captured)")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(isCurrent ? .yellow :
+                                 (colorScheme == .dark ? .white : .black))
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isCurrent ? Color.yellow.opacity(0.15) :
+                      (colorScheme == .dark ? Color.white.opacity(0.08)
+                                            : Color.black.opacity(0.05)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isCurrent ? Color.yellow.opacity(0.6) :
+                                (colorScheme == .dark ? Color.white.opacity(0.18)
+                                                      : Color.black.opacity(0.12)),
+                                lineWidth: 1)
+                )
+                .shadow(color: medalColors[rank, default: .clear].opacity(0.6),
+                        radius: rank <= 3 ? 8 : 0, y: 4)
+        )
+    }
+    
+    private var badge: some View {
+        let fill = isCurrent
+        ? Color.yellow
+        : medalColors[rank] ??
+          (colorScheme == .dark ? Color.white.opacity(0.3)
+                                : Color.black.opacity(0.15))
+        
+        return Text("#\(rank)")
             .font(.system(size: 18, weight: .heavy, design: .rounded))
-            .foregroundStyle(rank <= 3 ? .black : (colorScheme == .dark ? .white : .black))
+            .foregroundStyle(rank <= 3 || isCurrent ? .black :
+                             (colorScheme == .dark ? .white : .black))
             .padding(.vertical, 6)
             .padding(.horizontal, 16)
             .background(fill, in: Capsule())
