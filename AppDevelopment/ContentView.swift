@@ -167,7 +167,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showProfile) {
-            ProfileView(placesViewModel: decodedVM)
+            ProfileView(placesVM: decodedVM)
         }
         .sheet(isPresented: $showOwnerQuiz) {
             if let q = ownerQuiz {
