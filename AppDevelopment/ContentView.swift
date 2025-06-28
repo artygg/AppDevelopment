@@ -78,7 +78,6 @@ struct ContentView: View {
         }
         .task { await startup() }
         .onDisappear {
-            webSocketManager.disconnect()
             decodedVM.stopPeriodicFetching()
         }
     }
@@ -325,7 +324,6 @@ struct ContentView: View {
 
         await iconLoader.fetchIcons()
         decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
-        webSocketManager.connect()
     }
 
     func annotationTapped(_ place: DecodedPlace) {
