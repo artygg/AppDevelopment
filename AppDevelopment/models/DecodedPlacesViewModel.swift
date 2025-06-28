@@ -11,7 +11,8 @@ import SwiftUI
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
-
+    @Published var latestMineBalance: Int? = nil
+    
     @AppStorage("username") private var currentUser: String = "player1"
     private let baseURL = Config.apiURL
     private var fetchingTask: Task<Void, Never>?
@@ -154,5 +155,10 @@ class DecodedPlacesViewModel: ObservableObject {
         req.httpBody = try? JSONEncoder().encode(payload)
 
         _ = try? await URLSession.shared.data(for: req)
+    }
+    
+    func updateMineBalance(_ bal: Int) {
+        latestMineBalance = bal
+        UserDefaults.standard.set(bal, forKey: "mineCount")
     }
 }

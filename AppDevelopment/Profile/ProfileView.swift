@@ -44,8 +44,10 @@ struct ProfileView: View {
             .toolbar { settingsToolbar }
             .sheet(isPresented: $vm.showSettings)  { SettingsView() }
             .sheet(isPresented: $vm.showAuthSheet){ AuthenticationView() }
-            .sheet(isPresented: $vm.showAllPlaces){
-                AllCapturedPlacesView(capturedPlaces: vm.capturedPlaces)
+            .sheet(isPresented: $vm.showAllPlaces) {
+                AllCapturedPlacesView(profileVM: vm,
+                                      placesVM:  placesVM,
+                                      capturedPlaces: vm.capturedPlaces)
             }
             .sheet(isPresented: $vm.ownerQuizSheet){
                 if let q = vm.ownerQuiz {

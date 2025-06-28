@@ -1,11 +1,13 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import Combine
 
 struct ContentView: View {
     @StateObject private var locationManager  = LocationManager()
     @StateObject private var decodedVM        = DecodedPlacesViewModel()
     @StateObject private var iconLoader       = CategoryIconLoader()
+
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 10
     @AppStorage("autoFocusEnabled") private var autoFocusEnabled: Bool = true
@@ -70,6 +72,7 @@ struct ContentView: View {
                 gameView
             }
         }
+        .onReceive(decodedVM.$latestMineBalance.compactMap { $0 }) { mineCount = $0 }
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { loc in
             userLocation = loc
             if !activeAdmin {
@@ -319,21 +322,20 @@ struct ContentView: View {
         }
     }
 
-    func startup() async {
-        mineCount = 10
+    private func startup() async {
+            do { mineCount = try await MineService.fetchBalance(for: currentUser) } catch { mineCount = 0 }
+            await iconLoader.fetchIcons()
+            decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
+        }
 
-        await iconLoader.fetchIcons()
-        decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
-    }
-
-    func annotationTapped(_ place: DecodedPlace) {
-        guard place.user_captured == currentUser else { return }
-        Task {
-            if let q = await QuizService.fetchQuiz(placeID: place.id) {
-                openOwnerQuiz(q)
+    private func annotationTapped(_ place: DecodedPlace) {
+            guard place.user_captured == currentUser else { return }
+            Task {
+                if let q = await QuizService.fetchQuiz(placeID: place.id) {
+                    openOwnerQuiz(q)
+                }
             }
         }
-    }
 
     func uploadPhoto() {
         if let img = capturedImage, let data = img.jpegData(compressionQuality: 0.8) {

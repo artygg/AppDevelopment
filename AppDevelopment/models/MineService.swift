@@ -1,70 +1,50 @@
 import Foundation
-import SwiftUI
 
 struct MineRequest: Encodable {
     let place_id: Int
-    let qid: String
+    let qid:      String
+    let user:     String
+}
+
+struct MineResponse: Decodable {
+    let mine_balance: Int
+}
+
+struct MinedResponse: Decodable {
+    let qids: [String]
 }
 
 enum MineService {
-    static func plantMine(placeID: Int, qid: String) async throws {
-        print("MineService.plantMine starting...")
-        print("Config.apiURL: \(Config.apiURL)")
-        
-        guard let url = URL(string: "\(Config.apiURL)/api/mine") else {
-            print("Invalid URL: \(Config.apiURL)/api/mine")
-            throw NSError(domain: "InvalidURL", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL"])
-        }
-        
-        print("URL created: \(url)")
-        
+
+    static func plantMine(placeID: Int,
+                          qid: String,
+                          user: String) async throws -> Int {
+
+        let url = URL(string: "\(Config.apiURL)/api/mine")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body = MineRequest(place_id: placeID, qid: qid)
-        print("Request body: \(body)")
-        
-        do {
-            req.httpBody = try JSONEncoder().encode(body)
-            print("Request body encoded successfully")
-        } catch {
-            print("Failed to encode request body: \(error)")
-            throw error
+        req.httpBody = try JSONEncoder().encode(
+            MineRequest(place_id: placeID, qid: qid, user: user)
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 201 else {
+            throw URLError(.badServerResponse)
         }
-        
-        print("Making network request...")
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: req)
-            
-            print("Network request completed")
-            print("Response data size: \(data.count) bytes")
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("HTTP Status: \(httpResponse.statusCode)")
-                print("Response headers: \(httpResponse.allHeaderFields)")
-                
-                if let responseString = String(data: data, encoding: .utf8) {
-                    print("Response body: \(responseString)")
-                }
-                
-                if httpResponse.statusCode == 201 {
-                    print("Mine planted successfully (201)")
-                    return
-                } else {
-                    let errorMsg = "HTTP Error \(httpResponse.statusCode)"
-                    print("\(errorMsg)")
-                    throw NSError(domain: "HTTPError", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
-                }
-            } else {
-                print("No HTTP response received")
-                throw NSError(domain: "NoHTTPResponse", code: 0, userInfo: [NSLocalizedDescriptionKey: "No HTTP response"])
-            }
-        } catch {
-            print("Network request failed: \(error)")
-            print("Error type: \(type(of: error))")
-            throw error
-        }
+        return try JSONDecoder().decode(MineResponse.self, from: data).mine_balance
+    }
+
+    static func fetchBalance(for user: String) async throws -> Int {
+        let url = URL(string: "\(Config.apiURL)/api/mines?user=\(user)")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        struct Resp: Decodable { let balance: Int }
+        return try JSONDecoder().decode(Resp.self, from: data).balance
+    }
+
+    static func fetchMined(placeID: Int) async throws -> Set<String> {
+        let url = URL(string: "\(Config.apiURL)/api/mines/list?place_id=\(placeID)")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return Set(try JSONDecoder().decode(MinedResponse.self, from: data).qids)
     }
 }

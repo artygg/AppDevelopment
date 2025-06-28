@@ -6,104 +6,76 @@
 //
 
 import SwiftUI
-import CoreLocation
 
 struct AllCapturedPlacesView: View {
+    @ObservedObject var profileVM : ProfileViewModel
+    @ObservedObject var placesVM  : DecodedPlacesViewModel
     let capturedPlaces: [Place]
-    @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    
-    var filteredPlaces: [Place] {
-        if searchText.isEmpty {
-            return capturedPlaces
-        } else {
-            return capturedPlaces.filter { place in
-                place.name.localizedCaseInsensitiveContains(searchText)
-            }
-        }
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dismiss)     private var dismiss
+    @State private var search   = ""
+
+    private var bg: some View {
+        LinearGradient(colors: scheme == .dark ? [.black, .indigo] : [.white, .blue.opacity(0.25)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+        .ignoresSafeArea()
     }
-    
+
+    private var filtered: [Place] {
+        search.isEmpty
+        ? capturedPlaces
+        : capturedPlaces.filter { $0.name.localizedCaseInsensitiveContains(search) }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                VStack(spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(capturedPlaces.count)")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.primary)
-                            
-                            Text("Places Captured")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("\(filteredPlaces.count)")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.blue)
-                            
-                            Text("Showing")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                    
-                    Divider()
-                }
-                .background(Color(.systemGroupedBackground))
-                
-                if filteredPlaces.isEmpty {
-                    VStack(spacing: 16) {
-                        Spacer()
-                        
-                        Image(systemName: searchText.isEmpty ? "mappin.slash" : "magnifyingglass")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        
-                        Text(searchText.isEmpty ? "No places captured yet" : "No places found")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        if !searchText.isEmpty {
-                            Text("Try adjusting your search terms")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary.opacity(0.7))
-                        }
-                        
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
+                header
+                if filtered.isEmpty {
+                    emptyState
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
-                            ForEach(filteredPlaces) { place in
+                            ForEach(filtered) { place in
                                 PlaceCard(place: place)
+                                    .onTapGesture {
+                                        Task { await profileVM.loadOwnerQuiz(for: place,
+                                                                             in: placesVM) }
+                                    }
                                     .padding(.horizontal)
                             }
                         }
-                        .padding(.top, 8)
-                        .padding(.bottom, 20)
+                        .padding(.top, 8).padding(.bottom, 20)
                     }
                 }
             }
-            .navigationTitle("All Places")
+            .background(bg)
+            .navigationTitle("Captured Places")
             .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search places...")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .fontWeight(.medium)
-                }
-            }
+            .searchable(text: $search, prompt: "Search…")
+            .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("Done", action: dismiss.callAsFunction) } }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(capturedPlaces.count)").font(.largeTitle.weight(.bold))
+            Text("Total Captured").foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24).padding(.vertical, 16)
+        .background(Material.ultraThin, in: Rectangle())
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "mappin.slash").font(.system(size: 50))
+            Text(search.isEmpty ? "No captured places yet" : "Nothing found")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
         }
     }
 }
