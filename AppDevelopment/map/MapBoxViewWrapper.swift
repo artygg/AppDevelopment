@@ -80,6 +80,9 @@ struct MapboxViewWrapper: UIViewRepresentable {
             self.onCameraChange?(center)
         }
         
+        // Add background/foreground observers
+        context.coordinator.setupBackgroundObservers()
+        
         return mapView
     }
 
@@ -160,10 +163,76 @@ struct MapboxViewWrapper: UIViewRepresentable {
         var registeredIcons: Set<String> = []
         var autoFocusEnabled: Bool = true
         
+        // Properties for background handling
+        private var backgroundObserver: NSObjectProtocol?
+        private var foregroundObserver: NSObjectProtocol?
+        private var needsAnnotationRefresh = false
+        
         init(_ parent: MapboxViewWrapper) {
             self.parent = parent
         }
         
+        deinit {
+            // Clean up observers
+            if let backgroundObserver = backgroundObserver {
+                NotificationCenter.default.removeObserver(backgroundObserver)
+            }
+            if let foregroundObserver = foregroundObserver {
+                NotificationCenter.default.removeObserver(foregroundObserver)
+            }
+        }
+        
+        // MARK: - Background/Foreground Handling
+        func setupBackgroundObservers() {
+            backgroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.handleAppDidEnterBackground()
+            }
+            
+            foregroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.willEnterForegroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.handleAppWillEnterForeground()
+            }
+        }
+        
+        private func handleAppDidEnterBackground() {
+            print("App entering background - marking annotations for refresh")
+            needsAnnotationRefresh = true
+        }
+        
+        private func handleAppWillEnterForeground() {
+            print("App entering foreground - checking if annotations need refresh")
+            
+            // Add a small delay to ensure the map is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.refreshAnnotationsIfNeeded()
+            }
+        }
+        
+        private func refreshAnnotationsIfNeeded() {
+            guard needsAnnotationRefresh else { return }
+            
+            print("Refreshing annotations after returning from background")
+            
+            // Reset the annotation manager
+            annotationManager = nil
+            iconsRegistered = false
+            registeredIcons.removeAll()
+            
+            // Re-register icons and update annotations
+            registerIcons(for: currentColorScheme)
+            updateAnnotations(for: currentColorScheme)
+            
+            needsAnnotationRefresh = false
+        }
+        
+        // MARK: - Focus on User Implementation
         func focusOnUser() {
             guard autoFocusEnabled else {
                 return
@@ -198,6 +267,16 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         func registerIcons(for colorScheme: ColorScheme) {
             guard let mapView = mapView else { return }
+            
+            // Check if icons are already registered for this color scheme
+            let themeSuffix = colorScheme == .dark ? "dark" : "light"
+            let testIconId = "mappin.circle.fill_\(themeSuffix)"
+            
+            if registeredIcons.contains(testIconId) {
+                print("Icons already registered for \(themeSuffix) theme")
+                return
+            }
+            
             let allIcons = Set(places.map { $0.placeIcon })
             
             let knownSymbols = [
@@ -232,8 +311,10 @@ struct MapboxViewWrapper: UIViewRepresentable {
                     colorScheme: colorScheme
                 ) {
                     do {
-                        let themedIconId = "\(iconName)_\(colorScheme == .dark ? "dark" : "light")"
+                        let themedIconId = "\(iconName)_\(themeSuffix)"
                         try mapView.mapboxMap.style.addImage(themedImage, id: themedIconId)
+                        registeredIcons.insert(themedIconId)
+                        print("Successfully registered icon: \(themedIconId)")
                     } catch {
                         print("Failed to register themed icon '\(iconName)': \(error.localizedDescription)")
                     }
@@ -283,19 +364,25 @@ struct MapboxViewWrapper: UIViewRepresentable {
         
         func updateAnnotations(for colorScheme: ColorScheme) {
             guard let mapView = mapView else {
+                print("MapView is nil, cannot update annotations")
                 return
             }
             
             guard !places.isEmpty else {
+                print("No places to display")
                 return
             }
             
-            registerIcons(for: colorScheme)
+            // Ensure icons are registered first
+            if !iconsRegistered {
+                registerIcons(for: colorScheme)
+            }
             
+            // Create or recreate annotation manager if needed
             if annotationManager == nil {
                 annotationManager = mapView.annotations.makePointAnnotationManager()
                 annotationManager?.delegate = self
-                print("Created annotation manager")
+                print("Created new annotation manager")
             } else {
                 annotationManager?.delegate = self
             }
@@ -314,6 +401,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 annotation.textAnchor = .top
                 annotation.textOffset = [0, 1.5]
                 annotation.textSize = 12
+                
                 let colorIcon: UIColor
                 if place.isCaptured {
                     if let capturedUser = place.user_captured, capturedUser == parent.currentUser {
@@ -330,7 +418,10 @@ struct MapboxViewWrapper: UIViewRepresentable {
                 newAnnotations.append(annotation)
             }
             
+            // Update annotations
             annotationManager?.annotations = newAnnotations
+            print("Updated \(newAnnotations.count) annotations")
+            
             debugAvailableIcons(for: colorScheme)
         }
         
