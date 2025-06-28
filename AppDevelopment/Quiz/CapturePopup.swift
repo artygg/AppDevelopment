@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct CapturePopup: View {
-    // MARK: – Input
     let place: DecodedPlace
     let onClose: () -> Void
     let onCapture: () -> Void
@@ -19,7 +18,6 @@ struct CapturePopup: View {
 
     var body: some View {
         ZStack {
-            // ▸ dim-behind overlay
             Color.black.opacity(0.45).ignoresSafeArea()
                 .onTapGesture { onClose() }
 
