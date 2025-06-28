@@ -7,16 +7,12 @@
 
 import SwiftUI
 
-// MARK: – Main View
 struct ProfileView: View {
 
-    // external datasource
     @ObservedObject var placesVM: DecodedPlacesViewModel
 
-    // state + actions
     @StateObject private var vm = ProfileViewModel()
 
-    // layout helpers
     @Environment(\.colorScheme) private var scheme
     private var gradientBG: some View {
         LinearGradient(colors: scheme == .dark
@@ -27,7 +23,6 @@ struct ProfileView: View {
             .ignoresSafeArea()
     }
 
-    // ─────────────────────────────────────────────── BODY
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -63,11 +58,6 @@ struct ProfileView: View {
         }
     }
 
-    // ╔══════════════════════════════════════════════════════════════════╗
-    // MARK: – Sections
-    // ╚══════════════════════════════════════════════════════════════════╝
-
-    /// avatar + username + small role badge
     private var headerSection: some View {
         VStack(spacing: 18) {
             AvatarView(url: vm.selectedAvatarURL, fallback: vm.username)
@@ -93,7 +83,6 @@ struct ProfileView: View {
         }
     }
 
-    /// green / pink KPI cards
     private var statsSection: some View {
         HStack(spacing: 16) {
             StatCard(title: "Places Captured",
@@ -108,7 +97,6 @@ struct ProfileView: View {
         .padding(.horizontal)
     }
 
-    /// last-five captured places list
     private var capturedSection: some View {
         VStack(spacing: 16) {
             sectionHeader("Captured Places",
@@ -136,7 +124,6 @@ struct ProfileView: View {
         .animation(.spring(), value: vm.capturedPlaces.count)
     }
 
-    /// destructive logout
     private var logoutButton: some View {
         Button(role: .destructive) { vm.logout() } label: {
             HStack {
@@ -153,7 +140,6 @@ struct ProfileView: View {
         .padding(.horizontal)
     }
 
-    /// guest placeholder
     private var loggedOutSection: some View {
         VStack(spacing: 26) {
             Image(systemName: "person.crop.circle.badge.xmark")
@@ -174,10 +160,6 @@ struct ProfileView: View {
         .padding(40)
     }
 
-    // ╔══════════════════════════════════════════════════════════════════╗
-    // MARK: – Helpers & Overlays
-    // ╚══════════════════════════════════════════════════════════════════╝
-
     private func sectionHeader(_ title: String,
                                showAll: Bool = false,
                                action: @escaping () -> Void = {}) -> some View {
@@ -192,7 +174,6 @@ struct ProfileView: View {
         }
     }
 
-    /// gear icon
     @ToolbarContentBuilder
     private var settingsToolbar: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
@@ -202,7 +183,6 @@ struct ProfileView: View {
         }
     }
 
-    /// blurred overlay while quiz loads
     @ViewBuilder
     private var loadingOverlay: some View {
         if vm.loadingOwnerQuiz {
@@ -223,11 +203,6 @@ struct ProfileView: View {
     }
 }
 
-// ╔══════════════════════════════════════════════════════════════════╗
-// MARK: – Tiny sub-views
-// ╚══════════════════════════════════════════════════════════════════╝
-
-// circular avatar with shimmer while loading
 private struct AvatarView: View {
     let url: String
     let fallback: String
@@ -262,7 +237,6 @@ private struct AvatarView: View {
     }
 }
 
-/// tiny shimmering placeholder (no deprecated repeatForever call)
 private struct Shimmer: View {
     @State private var offset: CGFloat = -1
     var body: some View {
@@ -272,7 +246,7 @@ private struct Shimmer: View {
                                           .white.opacity(0.3)]),
                        startPoint: .topLeading,
                        endPoint: .bottomTrailing)
-            .mask(Color.white)                 // keeps the gradient inside
+            .mask(Color.white)                 
             .rotationEffect(.degrees(70))
             .offset(x: offset * 200)
             .onAppear {

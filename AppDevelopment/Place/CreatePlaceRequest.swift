@@ -42,7 +42,6 @@ func createPlace(
     urlRequest.httpMethod = "POST"
     urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
     
-    // 👉 Add the JWT token here:
     if let token = UserDefaults.standard.string(forKey: "authToken") {
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     } else {

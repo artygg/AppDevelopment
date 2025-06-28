@@ -28,7 +28,6 @@ struct StatCard: View {
     }
 }
 
-// MARK: - Captured place cell
 struct PlaceCard: View {
     let place: Place
 
@@ -50,7 +49,6 @@ struct PlaceCard: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                // ── FIX: build the coordinate string with String(format:) ──
                 Text(
                     "Lat: \(String(format: "%.4f", place.coordinate.latitude)), " +
                     "Lon: \(String(format: "%.4f", place.coordinate.longitude))"
@@ -72,7 +70,6 @@ struct PlaceCard: View {
     }
 }
 
-// MARK: - Empty-state placeholder
 struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 16) {

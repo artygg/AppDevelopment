@@ -11,11 +11,9 @@ private let minedTime = 5
 private let corner    = CGFloat(22)
 
 struct OwnerQuizView: View {
-    // external
     @Binding var mineCount: Int
     let        onClose: () -> Void
 
-    // internal
     @State private var quiz:  Quiz
     @State private var mined: Set<String>
 
@@ -137,7 +135,6 @@ private struct QuestionRow: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // question text with gradient line
             VStack(alignment: .leading, spacing: 6) {
                 Text(question.text)
                     .font(.body.weight(.semibold))

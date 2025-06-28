@@ -27,7 +27,6 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 28) {
 
-                    // ─────── avatar row
                     SectionCard {
                         HStack {
                             Text("Change Avatar")
@@ -63,19 +62,18 @@ struct SettingsView: View {
 
                     VStack(spacing: 18) {
                         NavigationLink {
-                            MapSettingsView()          // ← separate file
+                            MapSettingsView()
                         } label: {
                             ActionRow(title: "Map Settings", systemImage: "map")
                         }
 
                         NavigationLink {
-                            NotificationSettingsView() // ← separate file
+                            NotificationSettingsView()
                         } label: {
                             ActionRow(title: "Notifications", systemImage: "bell.badge")
                         }
                     }
 
-                    // ─────── danger zone
                     SectionHeader("Danger Zone")
 
                     SectionCard {
@@ -102,8 +100,6 @@ struct SettingsView: View {
         }
     }
 }
-
-// ───────────────────────── helpers ─────────────────────────
 
 private struct SectionCard<Content: View>: View {
     @Environment(\.colorScheme) private var scheme

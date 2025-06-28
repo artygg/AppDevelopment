@@ -6,7 +6,6 @@ struct ContentView: View {
     @StateObject private var locationManager  = LocationManager()
     @StateObject private var decodedVM        = DecodedPlacesViewModel()
     @StateObject private var iconLoader       = CategoryIconLoader()
-    @StateObject private var webSocketManager = WebSocketManager()
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 10
     @AppStorage("autoFocusEnabled") private var autoFocusEnabled: Bool = true
@@ -84,7 +83,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Admin View
     var adminView: some View {
         VStack {
             HStack {
@@ -108,7 +106,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Game View
     var gameView: some View {
         ZStack(alignment: .top) {
             mapLayer
@@ -221,7 +218,6 @@ struct ContentView: View {
     @ViewBuilder
     private var quizCover: some View {
         ZStack {
-            // 1️⃣ Unified background that adapts with the system appearance
             Color(.systemBackground)
                 .ignoresSafeArea()
 
@@ -237,7 +233,6 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
 
                 }
-                // 2️⃣ Make the loader occupy the whole sheet so no "letter-box" strip appears
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let q = quiz, let place = placeToCapture {
                 QuizView(quiz: q, place: place) { correct, elapsed in
@@ -369,9 +364,7 @@ struct ContentView: View {
     func handleAnnotationTap(place: Place) {
         if place.isCaptured, place.user_captured == currentUser {
             print("Tapped on your captured place")
-            // Open mine window logic here
         } else {
-            // Find the corresponding DecodedPlace
             if let userLoc = userLocation {
                 if let decoded = decodedVM.places.first(where: { $0.name == place.name }) {
                     let distance = userLoc.distance(from: CLLocation(latitude: decoded.latitude, longitude: decoded.longitude))

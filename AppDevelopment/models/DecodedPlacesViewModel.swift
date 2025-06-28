@@ -17,7 +17,6 @@ class DecodedPlacesViewModel: ObservableObject {
     private var fetchingTask: Task<Void, Never>?
     private var iconMapping: [String: String] = [:]
 
-    // MARK: – DTO
     private struct CaptureReq: Codable {
         let place_id: Int
         let user:     String
@@ -47,7 +46,6 @@ class DecodedPlacesViewModel: ObservableObject {
                 do {
                     try await Task.sleep(for: .seconds(5))
                 } catch {
-                    // Task was cancelled.
                     return
                 }
             }
@@ -57,12 +55,7 @@ class DecodedPlacesViewModel: ObservableObject {
     func stopPeriodicFetching() {
         fetchingTask?.cancel()
     }
-//
-//    deinit {
-//        stopPeriodicFetching()
-//    }
 
-    // MARK: – Fetch places
     func fetchPlaces() async {
         guard let url = URL(string: "\(baseURL)/places") else { return }
 
@@ -98,7 +91,6 @@ class DecodedPlacesViewModel: ObservableObject {
         }
     }
 
-    // MARK: – Local state helpers
     func markCaptured(_ id: Int) {
         if let idx = places.firstIndex(where: { $0.id == id }) {
             places[idx].captured      = true

@@ -8,13 +8,10 @@
 import SwiftUI
 import PhotosUI
 
-// Public façade: present with `.sheet { ProfileImagePicker(selectedAvatarURL: …) }`
 struct ProfileImagePicker: View {
 
-    // The URL string you persist in @AppStorage
     @Binding var selectedAvatarURL: String
 
-    // Work state
     @State private var pickedItem: PhotosPickerItem?
     @State private var previewImage: UIImage?
     @Environment(\.dismiss) private var dismiss
@@ -38,7 +35,6 @@ struct ProfileImagePicker: View {
         }
     }
 
-    // ─── live preview
     private var avatarPreview: some View {
         Group {
             if let img = previewImage {
@@ -59,7 +55,6 @@ struct ProfileImagePicker: View {
         .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 2))
     }
 
-    // ─── toolbar buttons
     @ToolbarContentBuilder
     private var saveToolbar: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
@@ -71,7 +66,6 @@ struct ProfileImagePicker: View {
         }
     }
 
-    // ─── helpers
     private func loadImage() {
         guard let item = pickedItem else { return }
         Task {
@@ -95,7 +89,6 @@ struct ProfileImagePicker: View {
         }
     }
 
-    /// Saves to <App-Sandbox>/Documents/Avatars/<UUID>.jpg
     private func saveImage(data: Data) throws -> URL {
         let fm   = FileManager.default
         let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first!

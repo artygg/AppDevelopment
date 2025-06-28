@@ -79,39 +79,32 @@ struct User: Codable {
 @MainActor
 final class ProfileViewModel: ObservableObject {
     
-    // AppStorage – persisted across launches
     @AppStorage("isLoggedIn")        var isLoggedIn        = false
     @AppStorage("username")          var username          = ""
     @AppStorage("userEmail")         var userEmail         = ""
     @AppStorage("selectedAvatarURL") var selectedAvatarURL = ""
     @AppStorage("mineCount")         var mineCount         = 0
     
-    // sheet / navigation flags
     @Published var showSettings     = false
     @Published var showAuthSheet    = false
     @Published var showAllPlaces    = false
     @Published var ownerQuizSheet   = false
     @Published var loadingOwnerQuiz = false
     
-    // quiz presented when tapping a captured place
     @Published var ownerQuiz: Quiz?  = nil
     
     
-    // cached list of user-captured places
     @Published private(set) var capturedPlaces: [Place] = []
     
-    // weak reference to decoded places datasource
     private weak var placesVM: DecodedPlacesViewModel?
     @Published var showImagePicker = false
 
     
-    /// wire the external places view-model
     func bind(placesVM: DecodedPlacesViewModel) {
         self.placesVM = placesVM
         refreshCapturedPlaces()
     }
     
-    /// rebuilds `capturedPlaces` from the main places array
     func refreshCapturedPlaces() {
         guard let vm = placesVM else { return }
         capturedPlaces = vm.places
@@ -125,7 +118,6 @@ final class ProfileViewModel: ObservableObject {
             }
     }
     
-    /// asynchronous fetch of the owner-quiz for a tapped place
     func loadOwnerQuiz(for place: Place, in vm: DecodedPlacesViewModel) async {
         guard let decoded = vm.places.first(where: {
             $0.name == place.name &&
@@ -139,16 +131,12 @@ final class ProfileViewModel: ObservableObject {
         loadingOwnerQuiz = false
     }
     
-    /// log the user out (server + local clear)
     func logout() {
         APIService.shared.logout { [weak self] _ in
             Task { @MainActor in self?.clearLoginData() }
         }
     }
     
-    // ------------------------------------------------------------------
-    // MARK: – Helpers
-    // ------------------------------------------------------------------
     private func clearLoginData() {
         isLoggedIn        = false
         username          = ""

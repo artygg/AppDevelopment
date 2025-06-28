@@ -164,7 +164,6 @@ struct MapboxViewWrapper: UIViewRepresentable {
             self.parent = parent
         }
         
-        // MARK: - Focus on User Implementation
         func focusOnUser() {
             guard autoFocusEnabled else {
                 return
@@ -358,7 +357,6 @@ struct MapboxViewWrapper: UIViewRepresentable {
             parent.onMapTap?(coordinate)
         }
         
-        // MARK: - AnnotationInteractionDelegate
         func annotationManager(_ manager: AnnotationManager, didDetectTappedAnnotations annotations: [Annotation]) {
             for annotation in annotations {
                 if let pointAnnotation = annotation as? PointAnnotation {

@@ -13,12 +13,10 @@ struct CapturePopup: View {
     let onClose: () -> Void
     let onCapture: () -> Void
 
-    // MARK: – State
     @State private var photo:   Image? = nil
     @State private var loaded           = false
     @Environment(\.colorScheme) private var scheme
 
-    // MARK: – Body
     var body: some View {
         ZStack {
             // ▸ dim-behind overlay
@@ -34,13 +32,10 @@ struct CapturePopup: View {
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: photo)
     }
 
-    // MARK: – Card
     private var mainCard: some View {
         VStack(spacing: 24) {
-            // close ––––––––––––––––––––––––––––––––––––––––––––
             HStack { Spacer(); closeButton }
 
-            // image –––––––––––––––––––––––––––––––––––––––––––
             photoBlock
                 .frame(maxWidth: .infinity)
                 .aspectRatio(1.5, contentMode: .fit)
@@ -50,7 +45,6 @@ struct CapturePopup: View {
                         .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
                 )
 
-            // title –––––––––––––––––––––––––––––––––––––––––––
             VStack(spacing: 4) {
                 Text("Ready to capture")
                     .font(.callout.weight(.medium))
@@ -63,7 +57,6 @@ struct CapturePopup: View {
             }
             .padding(.horizontal)
 
-            // action –––––––––––––––––––––––––––––––––––––––––––
             captureButton
         }
         .padding(28)
@@ -77,7 +70,6 @@ struct CapturePopup: View {
         .shadow(color: .black.opacity(scheme == .dark ? 0.6 : 0.2), radius: 18, y: 6)
     }
 
-    // MARK: – Components
     private var closeButton: some View {
         Button(action: onClose) {
             Image(systemName: "xmark")
@@ -127,7 +119,6 @@ struct CapturePopup: View {
         .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
     }
 
-    // MARK: – Helpers
     private var buttonGradient: LinearGradient {
         LinearGradient(
             colors: scheme == .dark
@@ -161,7 +152,6 @@ struct CapturePopup: View {
     }
 }
 
-// MARK: – Blur helper
 private struct BlurView: UIViewRepresentable {
     let style: UIBlurEffect.Style
     func makeUIView(context: Context) -> UIVisualEffectView {
