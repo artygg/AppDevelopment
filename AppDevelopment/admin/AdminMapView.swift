@@ -42,12 +42,9 @@ struct AdminMapView: View {
             )
             .ignoresSafeArea()
 
-            // Static crosshair in the center
             CrosshairView()
             
-            // UI Controls
             VStack {
-                // Top area - could add other controls here
                 HStack {
                     Spacer()
                 }
@@ -55,12 +52,10 @@ struct AdminMapView: View {
                 
                 Spacer()
                 
-                // Bottom controls
                 HStack {
                     Spacer()
                     
                     VStack(spacing: 12) {
-                        // Add Place button
                         Button(action: {
                             showingAddSheet = true
                         }) {
@@ -79,7 +74,6 @@ struct AdminMapView: View {
                             .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                         }
                         
-                        // Current coordinates display
                         VStack(spacing: 2) {
                             Text("Center Location:")
                                 .font(.caption2)
@@ -208,7 +202,6 @@ struct CrosshairView: View {
     
     var body: some View {
         ZStack {
-            // Crosshair lines
             Rectangle()
                 .fill(colorScheme == .dark ? Color.yellow : Color.red)
                 .frame(width: 2, height: 40)
@@ -217,12 +210,10 @@ struct CrosshairView: View {
                 .fill(colorScheme == .dark ? Color.yellow : Color.red)
                 .frame(width: 40, height: 2)
             
-            // Center dot
             Circle()
                 .fill(colorScheme == .dark ? Color.yellow : Color.red)
                 .frame(width: 8, height: 8)
             
-            // Outer circle for better visibility
             Circle()
                 .stroke(
                     colorScheme == .dark ? Color.black : Color.white,
@@ -246,13 +237,11 @@ struct CrosshairView: View {
     }
 }
 
-// Alternative crosshair design with theme support
 struct CrosshairViewAlt: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ZStack {
-            // Target-style crosshair
             Image(systemName: "plus.circle")
                 .font(.system(size: 50))
                 .foregroundColor(colorScheme == .dark ? .yellow : .red)
@@ -290,16 +279,13 @@ struct PinOverlayView: View {
     }
 }
 
-// MARK: - Theme Extensions and Utilities
 
 extension Color {
-    // Custom theme colors
-    static let primaryButton = Color("PrimaryButton") // Define in Assets.xcassets
+    static let primaryButton = Color("PrimaryButton")
     static let secondaryBackground = Color("SecondaryBackground")
     static let primaryText = Color("PrimaryText")
     static let secondaryText = Color("SecondaryText")
     
-    // Dynamic colors that adapt to color scheme
     static func dynamicColor(light: Color, dark: Color) -> Color {
         return Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
@@ -307,7 +293,6 @@ extension Color {
     }
 }
 
-// Theme-aware button style
 struct ThemedButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) var colorScheme
     let backgroundColor: Color?
@@ -332,7 +317,6 @@ struct ThemedButtonStyle: ButtonStyle {
     }
 }
 
-// Theme-aware card background
 struct ThemedCardBackground: ViewModifier {
     @Environment(\.colorScheme) var colorScheme
     

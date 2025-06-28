@@ -163,7 +163,7 @@ struct MapboxViewWrapper: UIViewRepresentable {
         var registeredIcons: Set<String> = []
         var autoFocusEnabled: Bool = true
         
-        // Add these properties for background handling
+        // Properties for background handling
         private var backgroundObserver: NSObjectProtocol?
         private var foregroundObserver: NSObjectProtocol?
         private var needsAnnotationRefresh = false
@@ -448,7 +448,6 @@ struct MapboxViewWrapper: UIViewRepresentable {
             parent.onMapTap?(coordinate)
         }
         
-        // MARK: - AnnotationInteractionDelegate
         func annotationManager(_ manager: AnnotationManager, didDetectTappedAnnotations annotations: [Annotation]) {
             for annotation in annotations {
                 if let pointAnnotation = annotation as? PointAnnotation {

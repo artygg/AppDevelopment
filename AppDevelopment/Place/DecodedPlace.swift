@@ -12,13 +12,11 @@ struct DecodedPlace: Identifiable, Codable {
     var user_captured: String?
     var cooldown_until: Date?
 
-    // локальное (не приходит с сервера)
     var iconName: String = "mappin.circle.fill"
 
     enum CodingKeys: String, CodingKey {
         case id, name, latitude, longitude, category_id,
              captured, user_captured, cooldown_until
-        // iconName УБРАН из списка → не ожидается в JSON
     }
 
     var clCoordinate: CLLocationCoordinate2D {

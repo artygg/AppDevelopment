@@ -11,13 +11,13 @@ import SwiftUI
 @MainActor
 class DecodedPlacesViewModel: ObservableObject {
     @Published var places: [DecodedPlace] = []
-
+    @Published var latestMineBalance: Int? = nil
+    
     @AppStorage("username") private var currentUser: String = "player1"
     private let baseURL = Config.apiURL
     private var fetchingTask: Task<Void, Never>?
     private var iconMapping: [String: String] = [:]
 
-    // MARK: – DTO
     private struct CaptureReq: Codable {
         let place_id: Int
         let user:     String
@@ -47,7 +47,6 @@ class DecodedPlacesViewModel: ObservableObject {
                 do {
                     try await Task.sleep(for: .seconds(5))
                 } catch {
-                    // Task was cancelled.
                     return
                 }
             }
@@ -57,12 +56,7 @@ class DecodedPlacesViewModel: ObservableObject {
     func stopPeriodicFetching() {
         fetchingTask?.cancel()
     }
-//
-//    deinit {
-//        stopPeriodicFetching()
-//    }
 
-    // MARK: – Fetch places
     func fetchPlaces() async {
         guard let url = URL(string: "\(baseURL)/places") else { return }
 
@@ -98,7 +92,6 @@ class DecodedPlacesViewModel: ObservableObject {
         }
     }
 
-    // MARK: – Local state helpers
     func markCaptured(_ id: Int) {
         if let idx = places.firstIndex(where: { $0.id == id }) {
             places[idx].captured      = true
@@ -162,5 +155,10 @@ class DecodedPlacesViewModel: ObservableObject {
         req.httpBody = try? JSONEncoder().encode(payload)
 
         _ = try? await URLSession.shared.data(for: req)
+    }
+    
+    func updateMineBalance(_ bal: Int) {
+        latestMineBalance = bal
+        UserDefaults.standard.set(bal, forKey: "mineCount")
     }
 }

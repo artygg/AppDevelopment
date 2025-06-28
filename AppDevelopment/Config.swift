@@ -5,7 +5,6 @@
 //  Created by Timofei Arefev on 14/06/2025.
 //
 
-// Config.swift
 import Foundation
 
 struct Config {

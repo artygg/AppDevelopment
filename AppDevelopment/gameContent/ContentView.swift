@@ -1,12 +1,13 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import Combine
 
 struct ContentView: View {
     @StateObject private var locationManager  = LocationManager()
     @StateObject private var decodedVM        = DecodedPlacesViewModel()
     @StateObject private var iconLoader       = CategoryIconLoader()
-    @StateObject private var webSocketManager = WebSocketManager()
+
     @AppStorage("username")  private var currentUser: String = "player1"
     @AppStorage("mineCount") private var mineCount: Int = 10
     @AppStorage("autoFocusEnabled") private var autoFocusEnabled: Bool = true
@@ -71,6 +72,7 @@ struct ContentView: View {
                 gameView
             }
         }
+        .onReceive(decodedVM.$latestMineBalance.compactMap { $0 }) { mineCount = $0 }
         .onReceive(locationManager.$lastLocation.compactMap { $0 }) { loc in
             userLocation = loc
             if !activeAdmin {
@@ -79,12 +81,10 @@ struct ContentView: View {
         }
         .task { await startup() }
         .onDisappear {
-            webSocketManager.disconnect()
             decodedVM.stopPeriodicFetching()
         }
     }
     
-    // MARK: - Admin View
     var adminView: some View {
         VStack {
             HStack {
@@ -108,7 +108,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Game View
     var gameView: some View {
         ZStack(alignment: .top) {
             mapLayer
@@ -167,7 +166,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showProfile) {
-            ProfileView(placesViewModel: decodedVM)
+            ProfileView(placesVM: decodedVM)
         }
         .sheet(isPresented: $showOwnerQuiz) {
             if let q = ownerQuiz {
@@ -221,7 +220,6 @@ struct ContentView: View {
     @ViewBuilder
     private var quizCover: some View {
         ZStack {
-            // 1️⃣ Unified background that adapts with the system appearance
             Color(.systemBackground)
                 .ignoresSafeArea()
 
@@ -237,7 +235,6 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
 
                 }
-                // 2️⃣ Make the loader occupy the whole sheet so no "letter-box" strip appears
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let q = quiz, let place = placeToCapture {
                 QuizView(quiz: q, place: place) { correct, elapsed in
@@ -325,22 +322,20 @@ struct ContentView: View {
         }
     }
 
-    func startup() async {
-        mineCount = 10
+    private func startup() async {
+            do { mineCount = try await MineService.fetchBalance(for: currentUser) } catch { mineCount = 0 }
+            await iconLoader.fetchIcons()
+            decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
+        }
 
-        await iconLoader.fetchIcons()
-        decodedVM.startPeriodicFetching(iconMapping: iconLoader.mapping)
-        webSocketManager.connect()
-    }
-
-    func annotationTapped(_ place: DecodedPlace) {
-        guard place.user_captured == currentUser else { return }
-        Task {
-            if let q = await QuizService.fetchQuiz(placeID: place.id) {
-                openOwnerQuiz(q)
+    private func annotationTapped(_ place: DecodedPlace) {
+            guard place.user_captured == currentUser else { return }
+            Task {
+                if let q = await QuizService.fetchQuiz(placeID: place.id) {
+                    openOwnerQuiz(q)
+                }
             }
         }
-    }
 
     func uploadPhoto() {
         if let img = capturedImage, let data = img.jpegData(compressionQuality: 0.8) {
@@ -369,9 +364,7 @@ struct ContentView: View {
     func handleAnnotationTap(place: Place) {
         if place.isCaptured, place.user_captured == currentUser {
             print("Tapped on your captured place")
-            // Open mine window logic here
         } else {
-            // Find the corresponding DecodedPlace
             if let userLoc = userLocation {
                 if let decoded = decodedVM.places.first(where: { $0.name == place.name }) {
                     let distance = userLoc.distance(from: CLLocation(latitude: decoded.latitude, longitude: decoded.longitude))

@@ -58,7 +58,6 @@ struct AddPlaceForm: View {
         .preferredColorScheme(nil)
     }
     
-    // MARK: - View Components
     
     private var nameInputSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -119,7 +118,6 @@ struct AddPlaceForm: View {
         .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
     
-    // MARK: - Computed Properties
     
     private var textColor: Color {
         colorScheme == .dark ? .white : .primary
@@ -134,7 +132,6 @@ struct AddPlaceForm: View {
     }
 }
 
-// MARK: - Custom Styled Components
 
 struct CategorySelectionCard: View {
     let category: Category
@@ -186,9 +183,7 @@ struct CategorySelectionCard: View {
         RoundedRectangle(cornerRadius: 12)
             .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
     }
-    
-    // MARK: - Color Computations
-    
+        
     private var iconColor: Color {
         if isSelected {
             return colorScheme == .dark ? .black : .white
@@ -283,7 +278,6 @@ struct ThemedSaveButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Preview Support
 
 #if DEBUG
 struct AddPlaceForm_Previews: PreviewProvider {
@@ -310,7 +304,6 @@ struct AddPlaceForm_Previews: PreviewProvider {
     }
 }
 
-// Mock data for preview (replace with your actual Category structure)
 extension AddPlaceForm_Previews {
     static var mockCategories: [Category] {
         [

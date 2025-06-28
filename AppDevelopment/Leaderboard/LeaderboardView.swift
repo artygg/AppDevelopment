@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-// MARK: – Static colours
 private let medalColorsLight: [Int: Color] = [
     1: Color(red: 0.98, green: 0.83, blue: 0.26),
     2: Color(red: 0.83, green: 0.83, blue: 0.83),
@@ -65,7 +64,6 @@ struct LeaderboardView: View {
             .frame(maxWidth: 520)
             .task { await vm.fetch(limit: 50) }
         }
-        // single inset with both buttons aligned
         .safeAreaInset(edge: .top) {
             HStack {
                 closeButton
@@ -92,7 +90,6 @@ struct LeaderboardView: View {
         }
     }
     
-    // MARK: progress
     private var progressBar: some View {
         let maxCaptured = vm.rows.map(\.captured).max() ?? 1
         let mine        = vm.rows.first(where: { $0.user == currentUser })
@@ -117,7 +114,6 @@ struct LeaderboardView: View {
         .padding(.horizontal)
     }
     
-    // MARK: overlay buttons
     private var closeButton: some View {
         Button { dismiss() } label: {
             Image(systemName: "xmark")
@@ -142,7 +138,6 @@ struct LeaderboardView: View {
     }
 }
 
-// MARK: – Row
 private struct RowItem: View {
     let rank: Int
     let user: String
@@ -214,7 +209,6 @@ private struct RowItem: View {
     }
 }
 
-// MARK: – Info sheet
 private struct InfoSheet: View {
     var body: some View {
         VStack(spacing: 24) {
