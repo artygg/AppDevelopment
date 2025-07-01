@@ -26,7 +26,6 @@ struct QuizService {
         setLoading: @escaping (Bool) -> Void,
         setQuiz: @escaping (Quiz?) -> Void
     ) async {
-        // 1️⃣ load the quiz
         let loadedQuiz = await fetchQuiz(placeID: place.id)
         guard var q = loadedQuiz else {
             print("⚠️ No quiz returned for place \(place.id)")
@@ -37,16 +36,13 @@ struct QuizService {
             return
         }
 
-        // 2️⃣ Log the quiz and its question IDs
         let allIDs = q.questions.map(\.id)
         print("🧩 Fetched quiz for place \(place.id):\n • \(q.questions.count) questions\n • IDs: \(allIDs)")
 
         do {
-            // 3️⃣ fetch the mined IDs
             let mined = try await MineService.fetchMined(placeID: place.id)
             print("⛏️ Mined IDs from backend (\(mined.count)):", mined)
 
-            // 4️⃣ tag those questions to 5s
             var matched: [String] = []
             for i in q.questions.indices {
                 let id = q.questions[i].id
@@ -60,7 +56,6 @@ struct QuizService {
             print("⚠️ handleQuizForPlace – fetchMined error:", error)
         }
 
-        // 5️⃣ hand it back to your view
         await MainActor.run {
             setLoading(false)
             setQuiz(q)
