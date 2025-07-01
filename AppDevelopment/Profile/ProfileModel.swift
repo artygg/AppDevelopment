@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreLocation
+import Combine
 
 struct APIConfig {
     static let baseURL = Config.apiURL
@@ -85,6 +86,8 @@ final class ProfileViewModel: ObservableObject {
     @AppStorage("selectedAvatarURL") var selectedAvatarURL = ""
     @AppStorage("mineCount")         var mineCount         = 0
     
+    private var cancellables = Set<AnyCancellable>()
+    
     @Published var showSettings     = false
     @Published var showAuthSheet    = false
     @Published var showAllPlaces    = false
@@ -101,9 +104,18 @@ final class ProfileViewModel: ObservableObject {
 
     
     func bind(placesVM: DecodedPlacesViewModel) {
-        self.placesVM = placesVM
-        refreshCapturedPlaces()
-    }
+            self.placesVM = placesVM
+            refreshCapturedPlaces()
+
+            placesVM.$latestMineBalance
+                .compactMap { $0 }
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] bal in
+                    self?.mineCount = bal
+                }
+                .store(in: &cancellables)
+        }
+
     
     func refreshCapturedPlaces() {
         guard let vm = placesVM else { return }

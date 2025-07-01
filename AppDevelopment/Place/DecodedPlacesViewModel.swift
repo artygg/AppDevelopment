@@ -99,40 +99,26 @@ class DecodedPlacesViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func finishAttempt(placeID: Int,
-                       correct: Int,
+                       correctCount: Int,
                        elapsed: Int) async -> (Bool, Quiz?) {
-
-        guard let url = URL(string: "\(baseURL)/api/finish") else { return (false,nil) }
-
+        let passed = (correctCount >= 1)      // or whatever pass threshold
+        guard let url = URL(string: "\(baseURL)/api/capture") else {
+            return (false, nil)
+        }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        struct Req: Codable {
-            let place_id:   Int
-            let user:       String
-            let correct:    Int
-            let elapsed_ms: Int
-        }
-        struct Resp: Codable {
-            let captured: Bool
-            let quiz:     Quiz?
-        }
-
-        req.httpBody = try? JSONEncoder().encode(
-            Req(place_id: placeID, user: currentUser,
-                correct: correct, elapsed_ms: elapsed)
-        )
-
+        let payload = CaptureReq(place_id: placeID,
+                                 user:     currentUser,
+                                 passed:   passed)
+        req.httpBody = try? JSONEncoder().encode(payload)
         do {
             let (data, _) = try await URLSession.shared.data(for: req)
-            let r = try JSONDecoder().decode(Resp.self, from: data)
-
-            if r.captured {
-                markCaptured(placeID)
-            }
-            return (r.captured, r.quiz)
+            let res = try JSONDecoder().decode(FinishResp.self, from: data)
+            if res.captured { markCaptured(placeID) }
+            return (res.captured, res.quiz)
         } catch {
             print("finishAttempt:", error)
             return (false, nil)

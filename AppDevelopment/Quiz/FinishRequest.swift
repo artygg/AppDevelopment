@@ -15,16 +15,24 @@ struct FinishRequest: Codable {
     let elapsed_ms: Int
 }
 
+struct FinishResp: Codable {
+    let captured:      Bool
+    let mine_balance:  Int?
+    let quiz:          Quiz?
+}
+
 enum ResultService {
-    static func send(_ body: FinishRequest) async -> Bool {
-        guard let url = URL(string: "http://localhost:8080/api/finish") else { return false }
+    static func send(_ body: FinishRequest) async throws -> FinishResp {
+        let url = URL(string: "\(Config.apiURL)/api/finish")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try? JSONEncoder().encode(body)
-        do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-            return (try? JSONDecoder().decode([String:Bool].self, from: data))?["captured"] ?? false
-        } catch { return false }
+        req.httpBody = try JSONEncoder().encode(body)
+
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(FinishResp.self, from: data)
     }
 }

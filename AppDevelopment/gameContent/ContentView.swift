@@ -240,9 +240,11 @@ struct ContentView: View {
                 QuizView(quiz: q, place: place) { correct, elapsed in
                     Task { @MainActor in
                         let (captured, newQuiz) =
-                          await decodedVM.finishAttempt(placeID: place.id,
-                                                        correct: correct,
-                                                        elapsed: elapsed)
+                          await decodedVM.finishAttempt(
+                            placeID: place.id,
+                            correctCount: correct,
+                            elapsed: elapsed
+                          )
 
                         if captured {
                             mineCount += 1
